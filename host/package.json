@@ -1,0 +1,15 @@
+{
+  "name": "snake-robot-upper-computer",
+  "version": "1.0.0",
+  "description": "蛇形机器人调试上位机 - BLE通信、舵机校准、动作组控制",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "optionalDependencies": {
+    "@abandonware/noble": "1.9.2-26"
+  }
+}

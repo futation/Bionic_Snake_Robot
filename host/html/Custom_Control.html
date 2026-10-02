@@ -1,0 +1,2407 @@
+  <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自定义控件设计器</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --topbar-bg: #ffffff;
+            --sidebar-bg: #fafafa;
+            --board-bg: #ffffff;
+            --border: #d9d9d9;
+            --text: #333333;
+            --text-secondary: #666666;
+            --primary: #4a90d9;
+            --primary-hover: #357abd;
+            --danger: #e05555;
+            --danger-hover: #c94444;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+            --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.18);
+            --radius: 8px;
+            --radius-sm: 5px;
+            --transition: 0.18s ease;
+            --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            --grid-color: #e8eaed;
+            --grid-size: 20px;
+            --overlay-bg: rgba(0, 0, 0, 0.35);
+            --control-highlight: 0 0 0 3px rgba(74, 144, 217, 0.45), 0 0 16px rgba(74, 144, 217, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font);
+            background: #e2e5ea;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .app-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ========== 顶部选项栏 ========== */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            background: var(--topbar-bg);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+        .topbar .tb-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            cursor: pointer;
+            font-size: 13.5px;
+            color: var(--text);
+            transition: var(--transition);
+            white-space: nowrap;
+            font-family: var(--font);
+            letter-spacing: 0.01em;
+        }
+        .topbar .tb-btn:hover {
+            background: #f3f4f6;
+            border-color: #d0d3d8;
+        }
+        .topbar .tb-btn:active {
+            background: #e5e7eb;
+        }
+        .topbar .tb-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .topbar .tb-btn .icon {
+            font-size: 16px;
+            width: 18px;
+            text-align: center;
+        }
+        .topbar .tb-sep {
+            width: 1px;
+            height: 22px;
+            background: #e0e0e0;
+            margin: 0 6px;
+            flex-shrink: 0;
+        }
+
+        /* ========== 主体区域 ========== */
+        .main-area {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ========== 左侧工具栏 ========== */
+        .sidebar {
+            width: 175px;
+            flex-shrink: 0;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            z-index: 90;
+        }
+        .sidebar .side-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text);
+            transition: var(--transition);
+            text-align: left;
+            font-family: var(--font);
+            letter-spacing: 0.01em;
+        }
+        .sidebar .side-btn:hover {
+            background: #eef1f5;
+            border-color: #d0d4db;
+        }
+        .sidebar .side-btn:active {
+            background: #dde2e9;
+        }
+        .sidebar .side-btn.active-mode {
+            background: #dce8f7;
+            border-color: #a0bcdb;
+            color: #2c5f8a;
+            font-weight: 600;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        .sidebar .side-btn .s-icon {
+            font-size: 15px;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .sidebar .side-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #999;
+            padding: 6px 12px 2px;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        /* ========== 白板区域 ========== */
+        .board-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #f5f6f8;
+        }
+        .board {
+            position: absolute;
+            inset: 16px;
+            background: var(--board-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            cursor: default;
+            background-image:
+                radial-gradient(circle, var(--grid-color) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            background-position: 0 0;
+        }
+        .board.dimmed {
+            background-color: #e8e9eb;
+            background-image:
+                radial-gradient(circle, #d5d7da 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+        }
+
+        /* 遮罩层 */
+        .board-overlay {
+            position: absolute;
+            inset: 0;
+            background: var(--overlay-bg);
+            z-index: 10;
+            pointer-events: all;
+            border-radius: var(--radius);
+            display: none;
+        }
+        .board-overlay.active {
+            display: block;
+        }
+
+        /* ========== 控件样式（白板上的控件） ========== */
+        .board-control {
+            position: absolute;
+            z-index: 20;
+            cursor: pointer;
+            transform-origin: center center;
+            transition: box-shadow 0.15s ease;
+            pointer-events: all;
+        }
+        .board-control.highlight-enabled {
+            z-index: 30;
+        }
+        .board-control.highlight-enabled .control-inner {
+            box-shadow: var(--control-highlight);
+        }
+        .board-control .control-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            border-radius: 6px;
+            transition: box-shadow 0.15s ease;
+        }
+
+        /* 按钮控件 */
+        .ctrl-btn-widget {
+            width: 120px;
+            height: 44px;
+            background: linear-gradient(180deg, #ffffff 0%, #f0f2f5 100%);
+            border: 1.5px solid #c5cad3;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+            letter-spacing: 0.02em;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+            font-family: var(--font);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 8px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 开关控件 */
+        .ctrl-switch-widget {
+            width: 100px;
+            height: 68px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 6px;
+            cursor: inherit;
+            font-family: var(--font);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .ctrl-switch-widget .switch-name-label {
+            font-size: 11px;
+            color: #555;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .ctrl-switch-widget .switch-track {
+            width: 52px;
+            height: 28px;
+            background: #c5cad3;
+            border-radius: 14px;
+            position: relative;
+            flex-shrink: 0;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .ctrl-switch-widget .switch-thumb {
+            width: 22px;
+            height: 22px;
+            background: #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+            transition: left 0.2s ease;
+        }
+
+        /* 控件边缘调整手柄指示 */
+        .resize-handle-indicator {
+            position: absolute;
+            pointer-events: none;
+            z-index: 35;
+            display: none;
+        }
+        .resize-handle-indicator.visible {
+            display: block;
+        }
+        .corner-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+        .edge-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+
+        /* ========== 模态弹窗 ========== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            width: 480px;
+            max-width: 94vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            animation: scaleIn 0.22s ease;
+        }
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.92);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .modal-header .gear-icon {
+            font-size: 20px;
+        }
+        .modal-header .modal-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: #222;
+            flex-shrink: 0;
+        }
+        .modal-header .modal-name-input {
+            flex: 1;
+            padding: 7px 10px;
+            border: 1px solid #d0d4db;
+            border-radius: 5px;
+            font-size: 13px;
+            font-family: var(--font);
+            outline: none;
+            transition: var(--transition);
+        }
+        .modal-header .modal-name-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.12);
+        }
+        .modal-body {
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex: 1;
+        }
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .config-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #444;
+        }
+        .config-group input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid #d0d4db;
+            border-radius: 5px;
+            font-size: 13px;
+            font-family: var(--font);
+            outline: none;
+            transition: var(--transition);
+        }
+        .config-group input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.12);
+        }
+        .hex-preview {
+            padding: 8px 10px;
+            background: #f5f6f8;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #777;
+            font-family: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+            letter-spacing: 0.04em;
+            word-break: break-all;
+            min-height: 20px;
+            border: 1px solid #e8eaed;
+        }
+        .hex-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .hex-toggle-row span {
+            font-size: 13px;
+            font-weight: 500;
+            color: #444;
+        }
+        .hex-toggle {
+            width: 44px;
+            height: 24px;
+            background: #c5cad3;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            flex-shrink: 0;
+        }
+        .hex-toggle.on {
+            background: var(--primary);
+        }
+        .hex-toggle .toggle-knob {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+        .hex-toggle.on .toggle-knob {
+            left: 22px;
+        }
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 14px 20px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .modal-footer button {
+            padding: 8px 20px;
+            border-radius: var(--radius-sm);
+            border: 1px solid #d0d4db;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: var(--font);
+            transition: var(--transition);
+            background: #f5f6f8;
+            color: #444;
+        }
+        .modal-footer button:hover {
+            background: #e8eaed;
+        }
+        .modal-footer button.btn-primary {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            font-weight: 500;
+        }
+        .modal-footer button.btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        /* ========== 添加控件选择弹窗 ========== */
+        .add-control-modal {
+            width: 380px;
+        }
+        .add-control-options {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            padding: 8px 0;
+        }
+        .add-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 24px;
+            border: 2px solid #e0e3e8;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: #fafbfc;
+            width: 110px;
+        }
+        .add-option:hover {
+            border-color: var(--primary);
+            background: #f0f5fb;
+            box-shadow: 0 2px 8px rgba(74, 144, 217, 0.12);
+        }
+        .add-option.selected {
+            border-color: var(--primary);
+            background: #e8f0fa;
+            box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+        }
+        .add-option .opt-icon {
+            font-size: 36px;
+        }
+        .add-option .opt-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #444;
+        }
+
+        /* ========== 右键菜单 ========== */
+        .context-menu {
+            position: fixed;
+            z-index: 1500;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+            min-width: 180px;
+            padding: 4px 0;
+            display: none;
+            overflow: hidden;
+        }
+        .context-menu.show {
+            display: block;
+        }
+        .context-menu .ctx-item {
+            padding: 9px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            transition: background 0.12s ease;
+            font-family: var(--font);
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+        .context-menu .ctx-item:hover {
+            background: #f0f4f8;
+        }
+        .context-menu .ctx-item.disabled {
+            color: #bbb;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .context-menu .ctx-sep {
+            height: 1px;
+            background: #eee;
+            margin: 3px 0;
+        }
+
+        /* ========== 提示标签 ========== */
+        .mode-indicator {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.78);
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            pointer-events: none;
+            letter-spacing: 0.03em;
+            display: none;
+            font-family: var(--font);
+        }
+        .mode-indicator.visible {
+            display: block;
+        }
+
+        /* 删除模式光标 */
+        .cursor-delete {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><line x1='6' y1='6' x2='26' y2='26' stroke='%23e05555' stroke-width='3.5' stroke-linecap='round'/><line x1='26' y1='6' x2='6' y2='26' stroke='%23e05555' stroke-width='3.5' stroke-linecap='round'/></svg>") 16 16, crosshair !important;
+        }
+        .cursor-delete .board-control {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><line x1='6' y1='6' x2='26' y2='26' stroke='%23e05555' stroke-width='3.5' stroke-linecap='round'/><line x1='26' y1='6' x2='6' y2='26' stroke='%23e05555' stroke-width='3.5' stroke-linecap='round'/></svg>") 16 16, crosshair !important;
+        }
+        .cursor-move {
+            cursor: grab !important;
+        }
+        .cursor-move .board-control {
+            cursor: grab !important;
+        }
+        .cursor-move .board-control:active {
+            cursor: grabbing !important;
+        }
+        .cursor-resize {
+            cursor: default !important;
+        }
+        .cursor-rotate {
+            cursor: default !important;
+        }
+
+        /* 放置模式光标 */
+        .cursor-placing {
+            cursor: crosshair !important;
+        }
+
+        /* 按钮按下状态 */
+        .ctrl-btn-widget.pressed {
+            background: linear-gradient(180deg, #d5d9df 0%, #c5cad3 100%) !important;
+            transform: scale(0.94);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.12) !important;
+            transition: transform 0.08s ease, background 0.08s ease;
+        }
+
+        /* 开关打开状态 */
+        .ctrl-switch-widget.on .switch-track {
+            background: #4a90d9;
+        }
+        .ctrl-switch-widget.on .switch-thumb {
+            left: 27px;
+        }
+
+        /* 吸附参考线 */
+        .snap-guide {
+            position: absolute;
+            pointer-events: none;
+            z-index: 60;
+        }
+        .snap-guide.horizontal {
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 1.5px dashed #4a90d9;
+        }
+        .snap-guide.vertical {
+            top: 0;
+            bottom: 0;
+            width: 0;
+            border-left: 1.5px dashed #4a90d9;
+        }
+
+        /* 自动吸附按钮激活 */
+        .sidebar .side-btn.snap-active {
+            background: #dce8f7;
+            border-color: #a0bcdb;
+            color: #2c5f8a;
+            font-weight: 600;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <!-- 顶部选项栏 -->
+        <div class="topbar" id="topbar">
+            <button class="tb-btn" id="btnUndo" disabled title="撤销 (Ctrl+Z)">
+                <span class="icon">↩</span> 撤销
+            </button>
+            <button class="tb-btn" id="btnRedo" disabled title="恢复 (Ctrl+Y)">
+                <span class="icon">↪</span> 恢复
+            </button>
+            <span class="tb-sep"></span>
+            <button class="tb-btn" id="btnExport" title="导出为JSON文件">
+                <span class="icon">📤</span> 导出
+            </button>
+            <button class="tb-btn" id="btnImport" title="导入JSON文件">
+                <span class="icon">📥</span> 导入
+            </button>
+            <button class="tb-btn" id="btnSave" title="保存到本地缓存">
+                <span class="icon">💾</span> 保存
+            </button>
+            <span id="bleStatusBadge" style="padding: 3px 10px; border-radius: 4px; font-size: 12px; margin-left: 8px; background: rgba(200,0,0,0.15); color: #f66;">
+                🔴 未连接
+            </span>
+            <span style="flex:1;"></span>
+        </div>
+
+        <!-- 主体区域 -->
+        <div class="main-area">
+            <!-- 左侧工具栏 -->
+            <div class="sidebar" id="sidebar">
+                <div class="side-label">控件操作</div>
+                <button class="side-btn" data-mode="add" id="sideAdd">
+                    <span class="s-icon">➕</span> 添加控件
+                </button>
+                <button class="side-btn" data-mode="edit" id="sideEdit">
+                    <span class="s-icon">✏️</span> 编辑控件
+                </button>
+                <button class="side-btn" data-mode="delete" id="sideDelete">
+                    <span class="s-icon">🗑️</span> 删除控件
+                </button>
+                <div class="side-label">控件调整</div>
+                <button class="side-btn" data-mode="move" id="sideMove">
+                    <span class="s-icon">↕️</span> 调整控件位置
+                </button>
+                <button class="side-btn" data-mode="resize" id="sideResize">
+                    <span class="s-icon">📐</span> 调整控件大小
+                </button>
+                <button class="side-btn" data-mode="rotate" id="sideRotate">
+                    <span class="s-icon">🔄</span> 调整控件角度
+                </button>
+                <div class="side-label">辅助功能</div>
+                <button class="side-btn" id="sideSnap">
+                    <span class="s-icon">🧲</span> 自动吸附
+                </button>
+                <button class="side-btn" id="sideQueryParams">
+                    <span class="s-icon">📊</span> 推荐参数查询
+                </button>
+            </div>
+
+            <!-- 白板区域 -->
+            <div class="board-wrapper" id="boardWrapper">
+                <div class="board" id="board">
+                    <!-- 控件渲染在此 -->
+                    <div id="snapGuides"></div>
+                </div>
+                <div class="board-overlay" id="boardOverlay"></div>
+                <div class="mode-indicator" id="modeIndicator"></div>
+            </div>
+        </div>
+
+        <!-- 右键菜单 -->
+        <div class="context-menu" id="contextMenu">
+            <div class="ctx-item" data-ctx-action="add">➕ 添加控件</div>
+            <div class="ctx-sep"></div>
+            <div class="ctx-item" data-ctx-action="edit">✏️ 编辑控件</div>
+            <div class="ctx-item" data-ctx-action="delete">🗑️ 删除控件</div>
+            <div class="ctx-item" data-ctx-action="move">↕️ 调整控件位置</div>
+            <div class="ctx-item" data-ctx-action="resize">📐 调整控件大小</div>
+            <div class="ctx-item" data-ctx-action="rotate">🔄 调整控件角度</div>
+        </div>
+
+        <!-- 隐藏的文件导入input -->
+        <input type="file" id="importFileInput" accept=".json" style="display:none;">
+    </div>
+
+    <!-- 模态弹窗容器（动态创建） -->
+    <div id="modalContainer"></div>
+
+    <script>
+        (function() {
+            // ==================== 全局状态 ====================
+            const board = document.getElementById('board');
+            const boardOverlay = document.getElementById('boardOverlay');
+            const modeIndicator = document.getElementById('modeIndicator');
+            const contextMenu = document.getElementById('contextMenu');
+            const importFileInput = document.getElementById('importFileInput');
+            const modalContainer = document.getElementById('modalContainer');
+            const boardWrapper = document.getElementById('boardWrapper');
+
+            // WebSocket 通信
+            function sendWs(type, data) {
+                try {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({ type: 'ws-send', wsType: type, wsData: data || {} }, '*');
+                    }
+                } catch(e) {}
+            }
+
+            function updateBleBadge(status) {
+                const badge = document.getElementById('bleStatusBadge');
+                if (!badge) return;
+                if (status.connected && status.txBound) {
+                    badge.innerHTML = '🟢 已连接';
+                    badge.style.background = 'rgba(0,200,0,0.15)'; badge.style.color = '#0f0';
+                } else if (status.connected) {
+                    badge.innerHTML = '🟡 Tx未绑';
+                    badge.style.background = 'rgba(200,200,0,0.15)'; badge.style.color = '#ff0';
+                } else {
+                    badge.innerHTML = '🔴 未连接';
+                    badge.style.background = 'rgba(200,0,0,0.15)'; badge.style.color = '#f66';
+                }
+            }
+
+            let controls = []; // 所有控件数据
+            let nextId = 1; // 控件ID计数器
+            let buttonCounter = 0; // 按钮命名计数器
+            let switchCounter = 0; // 开关命名计数器
+            let currentMode = 'default'; // 当前模式: default | add | edit | delete | move | resize | rotate
+            let undoStack = []; // 撤销栈（存储快照）
+            let redoStack = []; // 恢复栈
+            let contextTargetControlId = null; // 右键菜单针对的控件ID
+            let isDragging = false;
+            let dragData = null; // 拖拽数据
+            let activeEditControlId = null; // 当前正在编辑的控件ID（编辑弹窗打开时）
+            let pendingAddBoardPos = null; // 右键添加控件的目标位置（board坐标系）
+            let placingType = null; // 放置模式下待添加的控件类型
+            let snapEnabled = true; // 自动吸附开关（默认开启）
+
+            // ==================== 工具函数 ====================
+            function generateId() { return nextId++; }
+
+            function getButtonName() { buttonCounter++; return '按钮' + buttonCounter; }
+
+            function getSwitchName() { switchCounter++; return '开关' + switchCounter; }
+
+            function getControlById(id) { return controls.find(c => c.id === id); }
+
+            function getControlElementById(id) {
+                return document.querySelector(`.board-control[data-control-id="${id}"]`);
+            }
+
+            function textToHex(str) {
+                if (!str) return '';
+                let hex = '';
+                for (let i = 0; i < str.length; i++) {
+                    const code = str.charCodeAt(i);
+                    hex += code.toString(16).toUpperCase().padStart(2, '0') + ' ';
+                }
+                return hex.trim();
+            }
+
+            function hexToText(hexStr) {
+                if (!hexStr) return '';
+                hexStr = hexStr.replace(/\s+/g, '');
+                let text = '';
+                for (let i = 0; i < hexStr.length; i += 2) {
+                    if (i + 1 < hexStr.length) {
+                        const code = parseInt(hexStr.substring(i, i + 2), 16);
+                        if (!isNaN(code)) text += String.fromCharCode(code);
+                    }
+                }
+                return text;
+            }
+
+            function isValidHex(str) {
+                if (!str) return true;
+                const cleaned = str.replace(/\s+/g, '');
+                if (cleaned.length % 2 !== 0) return false;
+                return /^[0-9A-Fa-f]*$/.test(cleaned);
+            }
+
+            function formatHexDisplay(str) {
+                if (!str) return '';
+                const cleaned = str.replace(/\s+/g, '');
+                let formatted = '';
+                for (let i = 0; i < cleaned.length; i += 2) {
+                    formatted += cleaned.substring(i, i + 2).toUpperCase() + ' ';
+                }
+                return formatted.trim();
+            }
+
+            // 深拷贝控件数组
+            function cloneControls() {
+                return controls.map(c => ({ ...c, pressData: c.pressData || '', releaseData: c.releaseData || '', state: c.state || 'off' }));
+            }
+
+            // 保存快照
+            function pushSnapshot() {
+                undoStack.push(cloneControls());
+                if (undoStack.length > 80) undoStack.shift(); // 限制历史长度
+                redoStack = [];
+                updateUndoRedoButtons();
+            }
+
+            function updateUndoRedoButtons() {
+                document.getElementById('btnUndo').disabled = undoStack.length === 0;
+                document.getElementById('btnRedo').disabled = redoStack.length === 0;
+            }
+
+            function restoreSnapshot(snapshot) {
+                controls = snapshot.map(c => ({ ...c }));
+                // 更新计数器
+                let maxBtnNum = 0;
+                let maxSwNum = 0;
+                controls.forEach(c => {
+                    if (c.type === 'button') {
+                        const match = c.name.match(/^按钮(\d+)$/);
+                        if (match) maxBtnNum = Math.max(maxBtnNum, parseInt(match[1]));
+                    } else if (c.type === 'switch') {
+                        const match = c.name.match(/^开关(\d+)$/);
+                        if (match) maxSwNum = Math.max(maxSwNum, parseInt(match[1]));
+                    }
+                    if (c.id >= nextId) nextId = c.id + 1;
+                });
+                buttonCounter = maxBtnNum;
+                switchCounter = maxSwNum;
+                renderAllControls();
+                updateUndoRedoButtons();
+            }
+
+            // ==================== 渲染控件 ====================
+            function createControlElement(control) {
+                const el = document.createElement('div');
+                el.className = 'board-control';
+                el.dataset.controlId = control.id;
+                el.style.left = control.x + 'px';
+                el.style.top = control.y + 'px';
+                el.style.width = control.width + 'px';
+                el.style.height = control.height + 'px';
+                el.style.transform = `translate(-50%, -50%) rotate(${control.angle}deg)`;
+                el.style.zIndex = 20 + (control.id % 100);
+
+                const inner = document.createElement('div');
+                inner.className = 'control-inner';
+
+                if (control.type === 'button') {
+                    const btnWidget = document.createElement('div');
+                    btnWidget.className = 'ctrl-btn-widget';
+                    btnWidget.textContent = control.name;
+                    btnWidget.style.width = '100%';
+                    btnWidget.style.height = '100%';
+                    inner.appendChild(btnWidget);
+                } else if (control.type === 'switch') {
+                    const swWidget = document.createElement('div');
+                    swWidget.className = 'ctrl-switch-widget';
+                    if (control.state === 'on') swWidget.classList.add('on');
+                    swWidget.style.width = '100%';
+                    swWidget.style.height = '100%';
+                    const nameLabel = document.createElement('span');
+                    nameLabel.className = 'switch-name-label';
+                    nameLabel.textContent = control.name;
+                    const track = document.createElement('div');
+                    track.className = 'switch-track';
+                    const thumb = document.createElement('div');
+                    thumb.className = 'switch-thumb';
+                    track.appendChild(thumb);
+                    swWidget.appendChild(nameLabel);
+                    swWidget.appendChild(track);
+                    inner.appendChild(swWidget);
+                }
+
+                el.appendChild(inner);
+                return el;
+            }
+
+            function renderAllControls() {
+                // 清除现有控件元素
+                const existing = board.querySelectorAll('.board-control');
+                existing.forEach(el => el.remove());
+
+                // 渲染所有控件
+                controls.forEach(control => {
+                    const el = createControlElement(control);
+                    if (currentMode !== 'default' && currentMode !== 'add') {
+                        el.classList.add('highlight-enabled');
+                    }
+                    board.appendChild(el);
+                });
+
+                updateOverlayAndHighlights();
+            }
+
+            function updateOverlayAndHighlights() {
+                const isNonDefault = currentMode !== 'default' && currentMode !== 'add';
+                if (isNonDefault) {
+                    boardOverlay.classList.add('active');
+                    board.classList.add('dimmed');
+                } else {
+                    boardOverlay.classList.remove('active');
+                    board.classList.remove('dimmed');
+                }
+                // 更新控件高亮
+                const allCtrlEls = board.querySelectorAll('.board-control');
+                allCtrlEls.forEach(el => {
+                    if (isNonDefault) {
+                        el.classList.add('highlight-enabled');
+                    } else {
+                        el.classList.remove('highlight-enabled');
+                    }
+                });
+                // 更新模式指示器
+                updateModeIndicator();
+                // 更新光标
+                updateBoardCursor();
+                // 更新侧边栏按钮状态
+                updateSidebarActiveState();
+            }
+
+            function updateModeIndicator() {
+                const labels = {
+                    'default': '',
+                    'add': '',
+                    'edit': '编辑模式：左键点击控件编辑 · 右键退出',
+                    'delete': '删除模式：点击控件删除 · 右键退出',
+                    'move': '移动模式：拖动控件移动 · 右键退出',
+                    'resize': '缩放模式：拖动边缘缩放 · 右键退出',
+                    'rotate': '旋转模式：拖动边缘旋转 · 右键退出',
+                    'placing': '放置模式：点击白板放置控件 · 右键/Esc取消',
+                };
+                const text = labels[currentMode] || '';
+                if (text && currentMode !== 'default' && currentMode !== 'add') {
+                    modeIndicator.textContent = text;
+                    modeIndicator.classList.add('visible');
+                } else {
+                    modeIndicator.classList.remove('visible');
+                }
+            }
+
+            function updateBoardCursor() {
+                const wrapper = boardWrapper;
+                wrapper.classList.remove('cursor-delete', 'cursor-move', 'cursor-resize', 'cursor-rotate', 'cursor-placing');
+                if (currentMode === 'delete') wrapper.classList.add('cursor-delete');
+                else if (currentMode === 'move') wrapper.classList.add('cursor-move');
+                else if (currentMode === 'resize') wrapper.classList.add('cursor-resize');
+                else if (currentMode === 'rotate') wrapper.classList.add('cursor-rotate');
+                else if (currentMode === 'placing') wrapper.classList.add('cursor-placing');
+            }
+
+            function updateSidebarActiveState() {
+                const allSideBtns = document.querySelectorAll('.sidebar .side-btn');
+                allSideBtns.forEach(btn => {
+                    btn.classList.remove('active-mode');
+                    if (btn.dataset.mode === currentMode) {
+                        btn.classList.add('active-mode');
+                    }
+                });
+            }
+
+            function setStatus(msg) {
+                try {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({ type: 'log', level: 'info', message: msg }, '*');
+                    }
+                } catch(e) {}
+            }
+
+            // ==================== 模式管理 ====================
+            function setMode(mode) {
+                if (currentMode === mode && mode !== 'default' && mode !== 'placing') {
+                    // 再次点击同一模式按钮，退出该模式
+                    setMode('default');
+                    return;
+                }
+                // 关闭右键菜单
+                hideContextMenu();
+                // 关闭可能打开的编辑弹窗
+                closeAllModals();
+                activeEditControlId = null;
+                // 退出放置模式时清除
+                if (currentMode === 'placing') {
+                    placingType = null;
+                    clearSnapGuides();
+                }
+                currentMode = mode;
+                updateOverlayAndHighlights();
+                renderAllControls();
+                if (mode === 'default') {
+                    setStatus('已退出编辑模式');
+                }
+            }
+
+            function exitToDefault() {
+                setMode('default');
+                hideContextMenu();
+                closeAllModals();
+                activeEditControlId = null;
+                isDragging = false;
+                dragData = null;
+            }
+
+            // ==================== 关闭所有模态弹窗 ====================
+            function closeAllModals() {
+                modalContainer.innerHTML = '';
+                activeEditControlId = null;
+            }
+
+            // ==================== 添加控件弹窗 ====================
+            function showAddControlModal() {
+                closeAllModals();
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal add-control-modal">
+                        <div class="modal-header">
+                            <span class="gear-icon">⚙️</span>
+                            <span class="modal-title">添加控件</span>
+                        </div>
+                        <div class="modal-body">
+                            <p style="font-size:13px;color:#666;text-align:center;margin-bottom:4px;">请选择要添加的控件类型：</p>
+                            <div class="add-control-options">
+                                <div class="add-option" data-type="button" id="optButton">
+                                    <span class="opt-icon">🔘</span>
+                                    <span class="opt-label">按钮</span>
+                                </div>
+                                <div class="add-option" data-type="switch" id="optSwitch">
+                                    <span class="opt-icon">🔀</span>
+                                    <span class="opt-label">开关</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-cancel">取消</button>
+                            <button class="btn-primary" id="btnAddConfirm" disabled>确定</button>
+                        </div>
+                    </div>
+                `;
+                modalContainer.appendChild(overlay);
+
+                let selectedType = null;
+                const optButton = overlay.querySelector('#optButton');
+                const optSwitch = overlay.querySelector('#optSwitch');
+                const btnConfirm = overlay.querySelector('#btnAddConfirm');
+                const btnCancel = overlay.querySelector('.btn-cancel');
+
+                function selectType(type) {
+                    selectedType = type;
+                    optButton.classList.toggle('selected', type === 'button');
+                    optSwitch.classList.toggle('selected', type === 'switch');
+                    btnConfirm.disabled = false;
+                }
+
+                optButton.addEventListener('click', () => selectType('button'));
+                optSwitch.addEventListener('click', () => selectType('switch'));
+
+                btnCancel.addEventListener('click', () => {
+                    modalContainer.innerHTML = '';
+                });
+
+                btnConfirm.addEventListener('click', () => {
+                    if (!selectedType) return;
+                    modalContainer.innerHTML = '';
+                    // 右键触发：直接放置在右键位置；侧栏触发：进入放置模式
+                    const pos = pendingAddBoardPos;
+                    pendingAddBoardPos = null;
+                    if (pos) {
+                        addControl(selectedType, pos.x, pos.y);
+                        setStatus(`已添加${selectedType === 'button' ? '按钮' : '开关'}控件`);
+                    } else {
+                        enterPlacingMode(selectedType);
+                    }
+                });
+
+                // 不再关闭：点击窗外部不自动关闭，仅通过取消按钮关闭
+            }
+
+            function addControl(type, posX, posY) {
+                pushSnapshot();
+                const id = generateId();
+                // 优先使用传入的坐标（右键位置），否则使用白板中心
+                const useX = (posX != null) ? posX : (board.scrollWidth / 2);
+                const useY = (posY != null) ? posY : (board.scrollHeight / 2);
+                let name, width, height;
+                if (type === 'button') {
+                    name = getButtonName();
+                    width = 120;
+                    height = 44;
+                } else {
+                    name = getSwitchName();
+                    width = 100;
+                    height = 68;
+                }
+                const control = {
+                    id,
+                    type,
+                    name,
+                    x: useX,
+                    y: useY,
+                    width,
+                    height,
+                    angle: 0,
+                    pressData: '',
+                    releaseData: '',
+                    hexMode: false,
+                    state: 'off',
+                };
+                controls.push(control);
+                renderAllControls();
+                updateUndoRedoButtons();
+            }
+
+            // ==================== 编辑控件弹窗 ====================
+            function showEditControlModal(controlId) {
+                const control = getControlById(controlId);
+                if (!control) return;
+                closeAllModals();
+                activeEditControlId = controlId;
+
+                const pressLabel = control.type === 'button' ? '按钮按下时发送的数据：' : '打开时发送的数据：';
+                const releaseLabel = control.type === 'button' ? '按钮松开时发送的数据：' : '关闭时发送的数据：';
+                const titleText = control.type === 'button' ? '按钮' : '开关';
+
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal">
+                        <div class="modal-header">
+                            <span class="gear-icon">⚙️</span>
+                            <span class="modal-title">${titleText}</span>
+                            <input type="text" class="modal-name-input" value="${escapeHtml(control.name)}" id="editName" placeholder="控件名称">
+                        </div>
+                        <div class="modal-body">
+                            <div class="config-group">
+                                <label>${pressLabel}</label>
+                                <input type="text" id="editPressData" value="${escapeHtml(control.hexMode ? control.pressData : control.pressData)}" placeholder="${control.hexMode ? '输入HEX字节 如: 01 02 03' : '要发送的文本'}">
+                                <div class="hex-preview" id="editPressPreview">${control.hexMode ? formatHexDisplay(control.pressData) : textToHex(control.pressData) || '数据字节码'}</div>
+                            </div>
+                            <div class="config-group">
+                                <label>${releaseLabel}</label>
+                                <input type="text" id="editReleaseData" value="${escapeHtml(control.hexMode ? control.releaseData : control.releaseData)}" placeholder="${control.hexMode ? '输入HEX字节 如: 04 05 06' : '要发送的文本'}">
+                                <div class="hex-preview" id="editReleasePreview">${control.hexMode ? formatHexDisplay(control.releaseData) : textToHex(control.releaseData) || '数据字节码'}</div>
+                            </div>
+                            <div class="hex-toggle-row">
+                                <span>HEX</span>
+                                <div class="hex-toggle ${control.hexMode ? 'on' : ''}" id="editHexToggle">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-cancel" id="editCancel">取消</button>
+                            <button class="btn-primary" id="editConfirm">确定</button>
+                        </div>
+                    </div>
+                `;
+                modalContainer.appendChild(overlay);
+
+                const editName = overlay.querySelector('#editName');
+                const editPressData = overlay.querySelector('#editPressData');
+                const editReleaseData = overlay.querySelector('#editReleaseData');
+                const editPressPreview = overlay.querySelector('#editPressPreview');
+                const editReleasePreview = overlay.querySelector('#editReleasePreview');
+                const editHexToggle = overlay.querySelector('#editHexToggle');
+                const btnConfirm = overlay.querySelector('#editConfirm');
+                const btnCancel = overlay.querySelector('#editCancel');
+                let hexMode = control.hexMode;
+
+                function updatePreviews() {
+                    if (hexMode) {
+                        editPressPreview.textContent = formatHexDisplay(editPressData.value) || '数据字节码';
+                        editReleasePreview.textContent = formatHexDisplay(editReleaseData.value) || '数据字节码';
+                    } else {
+                        editPressPreview.textContent = textToHex(editPressData.value) || '数据字节码';
+                        editReleasePreview.textContent = textToHex(editReleaseData.value) || '数据字节码';
+                    }
+                }
+
+                editPressData.addEventListener('input', updatePreviews);
+                editReleaseData.addEventListener('input', updatePreviews);
+
+                editHexToggle.addEventListener('click', () => {
+                    hexMode = !hexMode;
+                    editHexToggle.classList.toggle('on', hexMode);
+                    if (hexMode) {
+                        // 切换到HEX模式：将当前文本转换为HEX
+                        if (editPressData.value && !isValidHex(editPressData.value)) {
+                            editPressData.value = textToHex(editPressData.value);
+                        }
+                        if (editReleaseData.value && !isValidHex(editReleaseData.value)) {
+                            editReleaseData.value = textToHex(editReleaseData.value);
+                        }
+                        editPressData.placeholder = '输入HEX字节 如: 01 02 03';
+                        editReleaseData.placeholder = '输入HEX字节 如: 04 05 06';
+                    } else {
+                        // 切换到文本模式：尝试将HEX转换为文本
+                        if (editPressData.value && isValidHex(editPressData.value)) {
+                            editPressData.value = hexToText(editPressData.value);
+                        }
+                        if (editReleaseData.value && isValidHex(editReleaseData.value)) {
+                            editReleaseData.value = hexToText(editReleaseData.value);
+                        }
+                        editPressData.placeholder = '要发送的文本';
+                        editReleaseData.placeholder = '要发送的文本';
+                    }
+                    updatePreviews();
+                });
+
+                btnCancel.addEventListener('click', () => {
+                    modalContainer.innerHTML = '';
+                    activeEditControlId = null;
+                });
+
+                btnConfirm.addEventListener('click', () => {
+                    pushSnapshot();
+                    control.name = editName.value.trim() || control.name;
+                    control.pressData = editPressData.value;
+                    control.releaseData = editReleaseData.value;
+                    control.hexMode = hexMode;
+                    renderAllControls();
+                    updateUndoRedoButtons();
+                    modalContainer.innerHTML = '';
+                    activeEditControlId = null;
+                    setStatus(`已更新控件"${control.name}"的配置`);
+                });
+
+                // 不再关闭：点击窗外部不自动关闭，仅通过取消按钮关闭
+
+                // 初始预览
+                updatePreviews();
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            // ==================== 删除控件 ====================
+            function deleteControl(controlId) {
+                const control = getControlById(controlId);
+                if (!control) return;
+                pushSnapshot();
+                controls = controls.filter(c => c.id !== controlId);
+                renderAllControls();
+                updateUndoRedoButtons();
+                setStatus(`已删除控件"${control.name}"`);
+            }
+
+            // ==================== 右键菜单 ====================
+            function showContextMenu(x, y, controlId) {
+                hideContextMenu();
+                contextTargetControlId = controlId;
+                const items = contextMenu.querySelectorAll('.ctx-item');
+                items.forEach(item => {
+                    const action = item.dataset.ctxAction;
+                    if (action === 'add') {
+                        item.classList.toggle('disabled', controlId !== null);
+                    } else {
+                        item.classList.toggle('disabled', controlId === null);
+                    }
+                });
+                contextMenu.style.left = x + 'px';
+                contextMenu.style.top = y + 'px';
+                contextMenu.classList.add('show');
+                // 确保菜单不超出屏幕
+                const rect = contextMenu.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    contextMenu.style.left = (x - rect.width) + 'px';
+                }
+                if (rect.bottom > window.innerHeight) {
+                    contextMenu.style.top = (y - rect.height) + 'px';
+                }
+            }
+
+            function hideContextMenu() {
+                contextMenu.classList.remove('show');
+                contextTargetControlId = null;
+            }
+
+            function handleContextMenuAction(action) {
+                const targetId = contextTargetControlId;
+                hideContextMenu();
+                switch (action) {
+                    case 'add':
+                        showAddControlModal();
+                        break;
+                    case 'edit':
+                        if (targetId) {
+                            setMode('edit');
+                            // 直接弹出编辑窗口
+                            setTimeout(() => showEditControlModal(targetId), 100);
+                        }
+                        break;
+                    case 'delete':
+                        if (targetId) {
+                            deleteControl(targetId);
+                            setMode('default');
+                        }
+                        break;
+                    case 'move':
+                        setMode('move');
+                        break;
+                    case 'resize':
+                        setMode('resize');
+                        break;
+                    case 'rotate':
+                        setMode('rotate');
+                        break;
+                }
+            }
+
+            // ==================== 白板上的鼠标事件 ====================
+            board.addEventListener('mousedown', function(e) {
+                if (e.button === 2) return; // 右键由contextmenu处理
+                if (e.button !== 0) return; // 只处理左键
+
+                // 默认/add模式：处理按钮/开关点击交互
+                if (currentMode === 'default' || currentMode === 'add') {
+                    const ctrlEl = e.target.closest('.board-control');
+                    if (ctrlEl) {
+                        const cid = parseInt(ctrlEl.dataset.controlId);
+                        const ctrl = getControlById(cid);
+                        if (ctrl && ctrl.type === 'button') {
+                            handleButtonPress(ctrl, ctrlEl);
+                        } else if (ctrl && ctrl.type === 'switch') {
+                            handleSwitchToggle(ctrl, ctrlEl);
+                        }
+                    }
+                    return;
+                }
+
+                // 在非默认模式下，点击遮罩空白处不做任何事
+                if (e.target === boardOverlay) return;
+                if (e.target === board && !e.target.closest('.board-control')) return;
+
+                const controlEl = e.target.closest('.board-control');
+                if (!controlEl) return;
+                const controlId = parseInt(controlEl.dataset.controlId);
+                const control = getControlById(controlId);
+                if (!control) return;
+
+                if (currentMode === 'edit') {
+                    // 编辑模式：左键点击弹出编辑窗口
+                    showEditControlModal(controlId);
+                    return;
+                }
+
+                if (currentMode === 'delete') {
+                    // 删除模式：点击删除
+                    deleteControl(controlId);
+                    return;
+                }
+
+                if (currentMode === 'move') {
+                    // 移动模式：开始拖拽
+                    startDragMove(e, control, controlEl);
+                    return;
+                }
+
+                if (currentMode === 'resize') {
+                    // 缩放模式：检测边缘
+                    const edgeInfo = detectEdge(e, control, controlEl);
+                    if (edgeInfo) {
+                        startDragResize(e, control, controlEl, edgeInfo);
+                    }
+                    return;
+                }
+
+                if (currentMode === 'rotate') {
+                    // 旋转模式：检测边缘
+                    const edgeInfo = detectEdge(e, control, controlEl);
+                    if (edgeInfo) {
+                        startDragRotate(e, control, controlEl);
+                    }
+                    return;
+                }
+            });
+
+            // 放置模式：通过 boardWrapper 捕获所有点击（包括遮罩层上的）
+            boardWrapper.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                if (currentMode !== 'placing' || !placingType) return;
+                const br = board.getBoundingClientRect();
+                const x = e.clientX - br.left;
+                const y = e.clientY - br.top;
+                if (x >= 0 && y >= 0 && x <= br.width && y <= br.height) {
+                    addControl(placingType, x, y);
+                    // 不退出放置模式，允许连续点击添加多个控件
+                }
+                e.stopPropagation();
+                e.preventDefault();
+            });
+
+            // 全局鼠标移动和释放
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging || !dragData) return;
+                if (dragData.type === 'move') {
+                    handleDragMove(e);
+                } else if (dragData.type === 'resize') {
+                    handleDragResize(e);
+                } else if (dragData.type === 'rotate') {
+                    handleDragRotate(e);
+                }
+            });
+
+            document.addEventListener('mouseup', function(e) {
+                if (!isDragging || !dragData) return;
+                const controlId = dragData.controlId;
+                isDragging = false;
+                dragData = null;
+                document.body.style.cursor = '';
+                clearSnapGuides();
+                renderAllControls();
+                updateUndoRedoButtons();
+                if (controlId) {
+                    setStatus('控件已更新');
+                }
+            });
+
+            // 右键事件 - 在白板上
+            board.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                if (currentMode !== 'default' && currentMode !== 'add') {
+                    // 在非默认模式下，右键退出
+                    exitToDefault();
+                    setStatus('已退出编辑模式');
+                    return;
+                }
+                // 默认模式下显示右键菜单
+                // 计算右键点击在 board 坐标系中的位置
+                const boardRect = board.getBoundingClientRect();
+                const boardX = e.clientX - boardRect.left;
+                const boardY = e.clientY - boardRect.top;
+                pendingAddBoardPos = { x: boardX, y: boardY };
+
+                const controlEl = e.target.closest('.board-control');
+                if (controlEl) {
+                    const controlId = parseInt(controlEl.dataset.controlId);
+                    showContextMenu(e.clientX, e.clientY, controlId);
+                } else if (e.target === board || e.target.closest('.board') === board) {
+                    showContextMenu(e.clientX, e.clientY, null);
+                }
+            });
+
+            // 在遮罩上右键也退出
+            boardOverlay.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                if (currentMode !== 'default' && currentMode !== 'add') {
+                    exitToDefault();
+                    setStatus('已退出编辑模式');
+                }
+            });
+
+            // 全局点击关闭右键菜单
+            document.addEventListener('click', function(e) {
+                if (!contextMenu.contains(e.target)) {
+                    hideContextMenu();
+                }
+            });
+
+            // 右键菜单项点击
+            contextMenu.addEventListener('click', function(e) {
+                const item = e.target.closest('.ctx-item');
+                if (!item || item.classList.contains('disabled')) return;
+                const action = item.dataset.ctxAction;
+                handleContextMenuAction(action);
+            });
+
+            // 防止右键菜单本身触发右键
+            contextMenu.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // ==================== 拖拽移动 ====================
+            function startDragMove(e, control, controlEl) {
+                isDragging = true;
+                const boardRect = board.getBoundingClientRect();
+                dragData = {
+                    type: 'move',
+                    controlId: control.id,
+                    startMouseX: e.clientX,
+                    startMouseY: e.clientY,
+                    startX: control.x,
+                    startY: control.y,
+                    boardRect: boardRect,
+                };
+                document.body.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+
+            function handleDragMove(e) {
+                const dx = e.clientX - dragData.startMouseX;
+                const dy = e.clientY - dragData.startMouseY;
+                const control = getControlById(dragData.controlId);
+                if (!control) return;
+                control.x = dragData.startX + dx;
+                control.y = dragData.startY + dy;
+                if (snapEnabled) {
+                    const snap = computeMoveSnap(control);
+                    control.x = snap.x;
+                    control.y = snap.y;
+                    renderSnapGuides(snap.guides);
+                }
+                updateControlElementPosition(control);
+            }
+
+            function updateControlElementPosition(control) {
+                const el = getControlElementById(control.id);
+                if (!el) return;
+                el.style.left = control.x + 'px';
+                el.style.top = control.y + 'px';
+                el.style.transform = `translate(-50%, -50%) rotate(${control.angle}deg)`;
+                el.style.width = control.width + 'px';
+                el.style.height = control.height + 'px';
+            }
+
+            // ==================== 放置模式 ====================
+            function enterPlacingMode(type) {
+                placingType = type;
+                setMode('placing');
+                setStatus('放置模式：点击白板放置控件 · 右键/Esc取消');
+            }
+
+            function exitPlacingMode() {
+                placingType = null;
+                clearSnapGuides();
+                setMode('default');
+            }
+
+            // ==================== 按钮/开关交互 ====================
+            function handleButtonPress(control, controlEl) {
+                const widget = controlEl.querySelector('.ctrl-btn-widget');
+                if (!widget) return;
+                widget.classList.add('pressed');
+                // 发送按下数据
+                if (control.pressData) {
+                    sendWs('control:sendPress', {
+                        data: control.pressData,
+                        hex: control.hexMode,
+                    });
+                    setStatus(`[发送] 按钮"${control.name}"按下: ${control.hexMode ? control.pressData : control.pressData}`);
+                }
+                const onRelease = function() {
+                    widget.classList.remove('pressed');
+                    document.removeEventListener('mouseup', onRelease);
+                    // 发送松开数据
+                    if (control.releaseData) {
+                        sendWs('control:sendRelease', {
+                            data: control.releaseData,
+                            hex: control.hexMode,
+                        });
+                        setStatus(`[发送] 按钮"${control.name}"松开: ${control.hexMode ? control.releaseData : control.releaseData}`);
+                    }
+                };
+                document.addEventListener('mouseup', onRelease);
+            }
+
+            function handleSwitchToggle(control, controlEl) {
+                control.state = control.state === 'on' ? 'off' : 'on';
+                const widget = controlEl.querySelector('.ctrl-switch-widget');
+                if (widget) {
+                    widget.classList.toggle('on', control.state === 'on');
+                }
+                // 发送开关状态数据
+                const sendData = control.state === 'on' ? control.pressData : control.releaseData;
+                if (sendData) {
+                    sendWs('control:sendSwitch', {
+                        state: control.state,
+                        data: sendData,
+                        hex: control.hexMode,
+                    });
+                    setStatus(`[发送] 开关"${control.name}"${control.state === 'on' ? '打开' : '关闭'}: ${control.hexMode ? sendData : sendData}`);
+                }
+            }
+
+            // ==================== 吸附逻辑 ====================
+            function computeAngleSnap(angle) {
+                const snapPoints = [0, 90, 180, 270, 360];
+                const threshold = 5;
+                for (const sp of snapPoints) {
+                    if (Math.abs(angle - sp) < threshold) return sp % 360;
+                }
+                return angle;
+            }
+
+            function computeMoveSnap(control) {
+                const threshold = 6;
+                let snapX = control.x;
+                let snapY = control.y;
+                const guides = [];
+                const hw = control.width / 2;
+                const hh = control.height / 2;
+                const myLeft = control.x - hw;
+                const myRight = control.x + hw;
+                const myCenterX = control.x;
+                const myTop = control.y - hh;
+                const myBottom = control.y + hh;
+                const myCenterY = control.y;
+
+                controls.forEach(other => {
+                    if (other.id === control.id) return;
+                    const ohw = other.width / 2;
+                    const ohh = other.height / 2;
+                    const oLeft = other.x - ohw;
+                    const oRight = other.x + ohw;
+                    const oCenterX = other.x;
+                    const oTop = other.y - ohh;
+                    const oBottom = other.y + ohh;
+                    const oCenterY = other.y;
+
+                    // 垂直对齐 (X方向吸附)
+                    if (Math.abs(myLeft - oLeft) < threshold) { snapX = oLeft + hw; guides.push({type:'v', x: oLeft}); }
+                    else if (Math.abs(myLeft - oRight) < threshold) { snapX = oRight + hw; guides.push({type:'v', x: oRight}); }
+                    else if (Math.abs(myRight - oRight) < threshold) { snapX = oRight - hw; guides.push({type:'v', x: oRight}); }
+                    else if (Math.abs(myRight - oLeft) < threshold) { snapX = oLeft - hw; guides.push({type:'v', x: oLeft}); }
+                    else if (Math.abs(myCenterX - oCenterX) < threshold) { snapX = oCenterX; guides.push({type:'v', x: oCenterX}); }
+
+                    // 水平对齐 (Y方向吸附)
+                    if (Math.abs(myTop - oTop) < threshold) { snapY = oTop + hh; guides.push({type:'h', y: oTop}); }
+                    else if (Math.abs(myTop - oBottom) < threshold) { snapY = oBottom + hh; guides.push({type:'h', y: oBottom}); }
+                    else if (Math.abs(myBottom - oBottom) < threshold) { snapY = oBottom - hh; guides.push({type:'h', y: oBottom}); }
+                    else if (Math.abs(myBottom - oTop) < threshold) { snapY = oTop - hh; guides.push({type:'h', y: oTop}); }
+                    else if (Math.abs(myCenterY - oCenterY) < threshold) { snapY = oCenterY; guides.push({type:'h', y: oCenterY}); }
+                });
+
+                return { x: snapX, y: snapY, guides };
+            }
+
+            function renderSnapGuides(guides) {
+                const container = document.getElementById('snapGuides');
+                if (!container) return;
+                container.innerHTML = '';
+                guides.forEach(g => {
+                    const line = document.createElement('div');
+                    line.className = 'snap-guide ' + (g.type === 'h' ? 'horizontal' : 'vertical');
+                    if (g.type === 'h') {
+                        line.style.top = g.y + 'px';
+                    } else {
+                        line.style.left = g.x + 'px';
+                    }
+                    container.appendChild(line);
+                });
+            }
+
+            function clearSnapGuides() {
+                const container = document.getElementById('snapGuides');
+                if (container) container.innerHTML = '';
+            }
+
+            // ==================== 边缘检测 ====================
+            function detectEdge(e, control, controlEl) {
+                const rect = controlEl.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const mx = e.clientX;
+                const my = e.clientY;
+
+                // 转换到本地坐标系（反向旋转）
+                const angleRad = -control.angle * Math.PI / 180;
+                const dx = mx - cx;
+                const dy = my - cy;
+                const localX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
+                const localY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
+
+                const hw = control.width / 2;
+                const hh = control.height / 2;
+                const margin = 12; // 边缘检测范围
+
+                const nearLeft = Math.abs(localX + hw) < margin;
+                const nearRight = Math.abs(localX - hw) < margin;
+                const nearTop = Math.abs(localY + hh) < margin;
+                const nearBottom = Math.abs(localY - hh) < margin;
+                const insideX = localX >= -hw - margin && localX <= hw + margin;
+                const insideY = localY >= -hh - margin && localY <= hh + margin;
+
+                if (!insideX || !insideY) return null;
+
+                return {
+                    nearLeft,
+                    nearRight,
+                    nearTop,
+                    nearBottom,
+                    localX,
+                    localY,
+                    hw,
+                    hh,
+                    isCorner: (nearLeft || nearRight) && (nearTop || nearBottom),
+                    isEdge: (nearLeft || nearRight || nearTop || nearBottom),
+                };
+            }
+
+            // ==================== 拖拽缩放 ====================
+            function startDragResize(e, control, controlEl, edgeInfo) {
+                isDragging = true;
+                const boardRect = board.getBoundingClientRect();
+                dragData = {
+                    type: 'resize',
+                    controlId: control.id,
+                    startMouseX: e.clientX,
+                    startMouseY: e.clientY,
+                    startWidth: control.width,
+                    startHeight: control.height,
+                    startX: control.x,
+                    startY: control.y,
+                    edgeInfo: edgeInfo,
+                    boardRect: boardRect,
+                };
+                document.body.style.cursor = getResizeCursor(edgeInfo);
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function getResizeCursor(edgeInfo) {
+                if (edgeInfo.nearLeft && edgeInfo.nearTop) return 'nwse-resize';
+                if (edgeInfo.nearRight && edgeInfo.nearBottom) return 'nwse-resize';
+                if (edgeInfo.nearLeft && edgeInfo.nearBottom) return 'nesw-resize';
+                if (edgeInfo.nearRight && edgeInfo.nearTop) return 'nesw-resize';
+                if (edgeInfo.nearLeft || edgeInfo.nearRight) return 'ew-resize';
+                if (edgeInfo.nearTop || edgeInfo.nearBottom) return 'ns-resize';
+                return 'default';
+            }
+
+            function handleDragResize(e) {
+                const control = getControlById(dragData.controlId);
+                if (!control) return;
+                const dx = e.clientX - dragData.startMouseX;
+                const dy = e.clientY - dragData.startMouseY;
+                const ei = dragData.edgeInfo;
+                const minW = 40;
+                const minH = 24;
+
+                let newWidth = dragData.startWidth;
+                let newHeight = dragData.startHeight;
+                let newX = dragData.startX;
+                let newY = dragData.startY;
+
+                // 在本地坐标中计算
+                const angleRad = -control.angle * Math.PI / 180;
+                const worldDx = dx;
+                const worldDy = dy;
+                const localDx = worldDx * Math.cos(angleRad) - worldDy * Math.sin(angleRad);
+                const localDy = worldDx * Math.sin(angleRad) + worldDy * Math.cos(angleRad);
+
+                if (ei.nearRight) {
+                    newWidth = Math.max(minW, dragData.startWidth + localDx);
+                }
+                if (ei.nearLeft) {
+                    const delta = Math.min(localDx, dragData.startWidth - minW);
+                    newWidth = Math.max(minW, dragData.startWidth - localDx);
+                    newX = dragData.startX + (localDx / 2) * Math.cos(control.angle * Math.PI / 180) - (0) * Math.sin(
+                        control.angle * Math.PI / 180);
+                    // 简化：在本地坐标中调整中心
+                }
+                if (ei.nearBottom) {
+                    newHeight = Math.max(minH, dragData.startHeight + localDy);
+                }
+                if (ei.nearTop) {
+                    newHeight = Math.max(minH, dragData.startHeight - localDy);
+                }
+
+                // 重新计算位置（保持对面边缘不变）
+                const oldHw = dragData.startWidth / 2;
+                const oldHh = dragData.startHeight / 2;
+                const newHw = newWidth / 2;
+                const newHh = newHeight / 2;
+
+                const localCenterShiftX = 0;
+                const localCenterShiftY = 0;
+
+                if (ei.nearRight && !ei.nearLeft) {
+                    const shiftLocalX = (newHw - oldHw);
+                    newX = dragData.startX + shiftLocalX * Math.cos(control.angle * Math.PI / 180);
+                    newY = dragData.startY + shiftLocalX * Math.sin(control.angle * Math.PI / 180);
+                } else if (ei.nearLeft && !ei.nearRight) {
+                    const shiftLocalX = -(newHw - oldHw);
+                    newX = dragData.startX + shiftLocalX * Math.cos(control.angle * Math.PI / 180);
+                    newY = dragData.startY + shiftLocalX * Math.sin(control.angle * Math.PI / 180);
+                }
+                if (ei.nearBottom && !ei.nearTop) {
+                    const shiftLocalY = (newHh - oldHh);
+                    newX = newX + shiftLocalY * Math.cos((control.angle + 90) * Math.PI / 180);
+                    newY = newY + shiftLocalY * Math.sin((control.angle + 90) * Math.PI / 180);
+                } else if (ei.nearTop && !ei.nearBottom) {
+                    const shiftLocalY = -(newHh - oldHh);
+                    newX = newX + shiftLocalY * Math.cos((control.angle + 90) * Math.PI / 180);
+                    newY = newY + shiftLocalY * Math.sin((control.angle + 90) * Math.PI / 180);
+                }
+
+                control.width = newWidth;
+                control.height = newHeight;
+                control.x = newX;
+                control.y = newY;
+                updateControlElementPosition(control);
+            }
+
+            // ==================== 拖拽旋转 ====================
+            function startDragRotate(e, control, controlEl) {
+                isDragging = true;
+                const rect = controlEl.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const initialAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+                dragData = {
+                    type: 'rotate',
+                    controlId: control.id,
+                    startAngle: control.angle,
+                    initialMouseAngle: initialAngle,
+                    cx: cx,
+                    cy: cy,
+                };
+                document.body.style.cursor = 'grabbing';
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function handleDragRotate(e) {
+                const control = getControlById(dragData.controlId);
+                if (!control) return;
+                const currentAngle = Math.atan2(e.clientY - dragData.cy, e.clientX - dragData.cx) * 180 / Math.PI;
+                let deltaAngle = currentAngle - dragData.initialMouseAngle;
+                let newAngle = dragData.startAngle + deltaAngle;
+                // 规范化角度到0-360
+                newAngle = ((newAngle % 360) + 360) % 360;
+                if (snapEnabled) {
+                    newAngle = computeAngleSnap(newAngle);
+                }
+                control.angle = Math.round(newAngle * 10) / 10;
+                updateControlElementPosition(control);
+            }
+
+            // ==================== 快捷键 ====================
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+Z 撤销
+                if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    undo();
+                    return;
+                }
+                // Ctrl+Y 恢复
+                if (e.ctrlKey && e.key === 'y') {
+                    e.preventDefault();
+                    redo();
+                    return;
+                }
+                // Ctrl+Shift+Z 也用于恢复
+                if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
+                    e.preventDefault();
+                    redo();
+                    return;
+                }
+                // Esc 退出模式
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (currentMode === 'placing') {
+                        exitPlacingMode();
+                        setStatus('已取消放置');
+                        return;
+                    }
+                    if (currentMode !== 'default' && currentMode !== 'add') {
+                        exitToDefault();
+                        setStatus('已退出编辑模式 (Esc)');
+                    }
+                    hideContextMenu();
+                    closeAllModals();
+                    return;
+                }
+            });
+
+            function undo() {
+                if (undoStack.length === 0) return;
+                redoStack.push(cloneControls());
+                const snapshot = undoStack.pop();
+                restoreSnapshot(snapshot);
+                setStatus('已撤销');
+                updateUndoRedoButtons();
+            }
+
+            function redo() {
+                if (redoStack.length === 0) return;
+                undoStack.push(cloneControls());
+                const snapshot = redoStack.pop();
+                restoreSnapshot(snapshot);
+                setStatus('已恢复');
+                updateUndoRedoButtons();
+            }
+
+            // ==================== 顶部按钮事件 ====================
+            document.getElementById('btnUndo').addEventListener('click', undo);
+            document.getElementById('btnRedo').addEventListener('click', redo);
+
+            document.getElementById('btnExport').addEventListener('click', function() {
+                const exportData = {
+                    version: '1.0',
+                    controls: cloneControls(),
+                    nextId: nextId,
+                    buttonCounter: buttonCounter,
+                    switchCounter: switchCounter,
+                    exportedAt: new Date().toISOString(),
+                };
+                const jsonStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'control-layout-' + new Date().toISOString().slice(0, 10) + '.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setStatus('已导出布局文件');
+            });
+
+            document.getElementById('btnImport').addEventListener('click', function() {
+                importFileInput.click();
+            });
+
+            importFileInput.addEventListener('change', function() {
+                const file = importFileInput.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (!data.controls || !Array.isArray(data.controls)) {
+                            throw new Error('无效的布局文件');
+                        }
+                        pushSnapshot();
+                        controls = data.controls.map(c => ({ ...c }));
+                        nextId = data.nextId || (Math.max(...controls.map(c => c.id), 0) + 1);
+                        buttonCounter = data.buttonCounter || 0;
+                        switchCounter = data.switchCounter || 0;
+                        // 重新计算计数器
+                        controls.forEach(c => {
+                            if (c.type === 'button') {
+                                const match = c.name.match(/^按钮(\d+)$/);
+                                if (match) buttonCounter = Math.max(buttonCounter, parseInt(match[1]));
+                            } else if (c.type === 'switch') {
+                                const match = c.name.match(/^开关(\d+)$/);
+                                if (match) switchCounter = Math.max(switchCounter, parseInt(
+                                    match[1]));
+                            }
+                            if (c.id >= nextId) nextId = c.id + 1;
+                        });
+                        renderAllControls();
+                        updateUndoRedoButtons();
+                        setStatus('已导入布局文件');
+                    } catch (err) {
+                        alert('导入失败：文件格式无效');
+                        setStatus('导入失败');
+                    }
+                };
+                reader.readAsText(file);
+                importFileInput.value = '';
+            });
+
+            document.getElementById('btnSave').addEventListener('click', function() {
+                const saveData = {
+                    version: '1.0',
+                    controls: cloneControls(),
+                    nextId: nextId,
+                    buttonCounter: buttonCounter,
+                    switchCounter: switchCounter,
+                    savedAt: new Date().toISOString(),
+                };
+                // 保存到后端持久化存储
+                sendWs('storage:save', { key: 'controlLayout', value: saveData });
+                // 同时也保存到 localStorage 作为辅助
+                try {
+                    localStorage.setItem('control-designer-save', JSON.stringify(saveData));
+                } catch (err) {}
+                setStatus('已保存到本地缓存');
+            });
+
+            // ==================== 侧边栏按钮事件 ====================
+            document.getElementById('sideAdd').addEventListener('click', function() {
+                // 如果正在放置模式，取消
+                if (currentMode === 'placing') {
+                    exitPlacingMode();
+                    return;
+                }
+                setMode('default');
+                showAddControlModal();
+            });
+
+            document.getElementById('sideEdit').addEventListener('click', function() {
+                setMode('edit');
+                if (currentMode === 'edit') {
+                    setStatus('编辑模式：左键点击控件进行编辑');
+                }
+            });
+
+            document.getElementById('sideDelete').addEventListener('click', function() {
+                setMode('delete');
+                if (currentMode === 'delete') {
+                    setStatus('删除模式：点击控件进行删除');
+                }
+            });
+
+            document.getElementById('sideMove').addEventListener('click', function() {
+                setMode('move');
+                if (currentMode === 'move') {
+                    setStatus('移动模式：拖动控件来调整位置');
+                }
+            });
+
+            document.getElementById('sideResize').addEventListener('click', function() {
+                setMode('resize');
+                if (currentMode === 'resize') {
+                    setStatus('缩放模式：拖动控件边缘来调整大小');
+                }
+            });
+
+            document.getElementById('sideRotate').addEventListener('click', function() {
+                setMode('rotate');
+                if (currentMode === 'rotate') {
+                    setStatus('旋转模式：拖动控件边缘来调整角度');
+                }
+            });
+
+            document.getElementById('sideSnap').addEventListener('click', function() {
+                snapEnabled = !snapEnabled;
+                const btn = document.getElementById('sideSnap');
+                if (snapEnabled) {
+                    btn.classList.add('snap-active');
+                    setStatus('自动吸附已开启');
+                } else {
+                    btn.classList.remove('snap-active');
+                    clearSnapGuides();
+                    setStatus('自动吸附已关闭');
+                }
+            });
+
+            // ==================== 推荐参数查询 ====================
+            document.getElementById('sideQueryParams').addEventListener('click', function() {
+                // 发送 0x0F 查询运动极限参数（无 payload）
+                sendWs('control:sendCmd', { cmd: 0x0F, payload: [] });
+                setStatus('已发送运动参数查询请求...', 'info');
+            });
+
+            // ==================== 调整大小模式下的光标提示 ====================
+            board.addEventListener('mousemove', function(e) {
+                if (currentMode === 'resize' && !isDragging) {
+                    const controlEl = e.target.closest('.board-control');
+                    if (controlEl) {
+                        const controlId = parseInt(controlEl.dataset.controlId);
+                        const control = getControlById(controlId);
+                        if (control) {
+                            const edgeInfo = detectEdge(e, control, controlEl);
+                            if (edgeInfo && edgeInfo.isEdge) {
+                                document.body.style.cursor = getResizeCursor(edgeInfo);
+                            } else if (edgeInfo) {
+                                document.body.style.cursor = 'default';
+                            } else {
+                                document.body.style.cursor = 'default';
+                            }
+                        }
+                    } else {
+                        document.body.style.cursor = '';
+                    }
+                } else if (currentMode === 'rotate' && !isDragging) {
+                    const controlEl = e.target.closest('.board-control');
+                    if (controlEl) {
+                        document.body.style.cursor = 'grab';
+                    } else {
+                        document.body.style.cursor = '';
+                    }
+                } else if (!isDragging && (currentMode === 'default' || currentMode === 'add')) {
+                    document.body.style.cursor = '';
+                }
+            });
+
+            // ==================== 初始化 ====================
+            function loadSavedData() {
+                try {
+                    const saved = localStorage.getItem('control-designer-save');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        if (data.controls && Array.isArray(data.controls)) {
+                            controls = data.controls.map(c => ({ ...c }));
+                            nextId = data.nextId || (Math.max(...controls.map(c => c.id), 0) + 1);
+                            buttonCounter = data.buttonCounter || 0;
+                            switchCounter = data.switchCounter || 0;
+                            controls.forEach(c => {
+                                if (c.type === 'button') {
+                                    const match = c.name.match(/^按钮(\d+)$/);
+                                    if (match) buttonCounter = Math.max(buttonCounter, parseInt(match[1]));
+                                } else if (c.type === 'switch') {
+                                    const match = c.name.match(/^开关(\d+)$/);
+                                    if (match) switchCounter = Math.max(switchCounter, parseInt(match[1]));
+                                }
+                                if (c.id >= nextId) nextId = c.id + 1;
+                            });
+                            setStatus('已加载保存的布局');
+                        }
+                    }
+                } catch (err) {
+                    console.log('加载保存数据失败', err);
+                }
+                renderAllControls();
+                updateUndoRedoButtons();
+                updateSidebarActiveState();
+            }
+
+            // 初始快照
+            loadSavedData();
+            if (controls.length > 0 && undoStack.length === 0) {
+                // 初始加载后保存一个快照用于撤销
+                undoStack.push(cloneControls());
+                updateUndoRedoButtons();
+            }
+            if (controls.length === 0 && undoStack.length === 0) {
+                undoStack.push([]);
+                updateUndoRedoButtons();
+            }
+
+            // 关闭所有弹窗的全局点击
+            document.addEventListener('click', function(e) {
+                // 不再自动关闭：弹窗仅通过取消按钮关闭
+            });
+
+            console.log('✅ 自定义控件设计器已就绪');
+            // 默认开启自动吸附
+            document.getElementById('sideSnap').classList.add('snap-active');
+            console.log('   - 自动吸附：已默认开启');
+            console.log('   - 左侧工具栏：添加/编辑/删除/移动/缩放/旋转');
+            console.log('   - 右键菜单：默认模式下右键白板');
+            console.log('   - 快捷键：Esc退出模式 | Ctrl+Z撤销 | Ctrl+Y恢复');
+            console.log('   - 导出格式：JSON文件');
+            console.log('   - 后端通信：WebSocket IPC');
+
+            // 启动时不发送 storage:load（WS 尚未连接，会被静默丢弃但产生无意义 [请求] 日志）
+            // 改为在 ws:connected 事件中发送（见下方消息监听器）
+
+            // ==================== 接收后端消息 ====================
+            window.addEventListener('message', function(e) {
+                const data = e.data;
+                if (!data || typeof data !== 'object') return;
+
+                // 直接消息（来自框架转发的协议包，非 ws-event 包裹）
+                if (data.type === 'control:motionParams') {
+                    _showMotionParamsModal(data.data);
+                    return;
+                }
+
+                if (data.type === 'ws-event') {
+                    const { eventType, data: eventData } = data;
+
+                    if (eventType === 'ws:connected') {
+                        sendWs('storage:load', { key: 'controlLayout' });
+                    } else if (eventType === 'ble:status') {
+                        updateBleBadge(eventData);
+                    } else if (eventType === 'error' && eventData.type && eventData.type.startsWith('control:')) {
+                        setStatus('发送失败: ' + eventData.message, 'error');
+                    } else if (eventType === 'storage:loaded' && eventData.key === 'controlLayout' && eventData.value) {
+                        try {
+                            const saveData = eventData.value;
+                            if (saveData.controls && Array.isArray(saveData.controls)) {
+                                pushSnapshot();
+                                controls = saveData.controls.map(c => ({ ...c }));
+                                nextId = saveData.nextId || (Math.max(...controls.map(c => c.id), 0) + 1);
+                                buttonCounter = saveData.buttonCounter || 0;
+                                switchCounter = saveData.switchCounter || 0;
+                                renderAllControls();
+                                updateUndoRedoButtons();
+                                setStatus('已从后端加载布局');
+                            }
+                        } catch (err) {
+                            console.error('加载布局失败:', err);
+                        }
+                    }
+                }
+            });
+
+            // ==================== 运动参数弹窗 ====================
+            function _showMotionParamsModal(rawData) {
+                const raw = rawData.rawBytes || [];
+                if (raw.length < 22) {
+                    setStatus('运动参数数据不完整（需要22字节，收到' + raw.length + '字节）', 'error');
+                    return;
+                }
+
+                // 解析 IEEE 754 单精度浮点（小端序）
+                function readFloatLE(arr, offset) {
+                    const buf = new ArrayBuffer(4);
+                    const view = new DataView(buf);
+                    view.setUint8(0, arr[offset]);
+                    view.setUint8(1, arr[offset + 1]);
+                    view.setUint8(2, arr[offset + 2]);
+                    view.setUint8(3, arr[offset + 3]);
+                    return view.getFloat32(0, true); // little-endian
+                }
+
+                // 解析 uint16 小端序
+                function readUint16LE(arr, offset) {
+                    return arr[offset] | (arr[offset + 1] << 8);
+                }
+
+                const aMax = readFloatLE(raw, 0);
+                const vMax = readFloatLE(raw, 4);
+                const lambdaMin = readFloatLE(raw, 8);
+                const lambdaMax = readFloatLE(raw, 12);
+                const lambdaCur = readFloatLE(raw, 16);
+                const sineTime = readUint16LE(raw, 20);
+
+                // 构建弹窗
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal" style="width:420px;">
+                        <div class="modal-header">
+                            <span class="gear-icon">📊</span>
+                            <span class="modal-title">运动极限参数</span>
+                        </div>
+                        <div class="modal-body" style="padding:20px 24px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid #e0e0e0;">
+                                        <th style="text-align:left;padding:8px 6px;color:#555;">参数</th>
+                                        <th style="text-align:right;padding:8px 6px;color:#555;">值</th>
+                                        <th style="text-align:right;padding:8px 6px;color:#888;font-weight:normal;">单位</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:10px 6px;font-weight:500;">A<sub>max</sub> 最大振幅</td>
+                                        <td style="text-align:right;padding:10px 6px;font-family:monospace;font-size:15px;color:#1a73e8;">${aMax.toFixed(1)}</td>
+                                        <td style="text-align:right;padding:10px 6px;color:#999;">度</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:10px 6px;font-weight:500;">V<sub>max</sub> 最大波速</td>
+                                        <td style="text-align:right;padding:10px 6px;font-family:monospace;font-size:15px;color:#1a73e8;">${vMax.toFixed(1)}</td>
+                                        <td style="text-align:right;padding:10px 6px;color:#999;">关节间隔/秒</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:10px 6px;font-weight:500;">λ<sub>min</sub> 波长下限</td>
+                                        <td style="text-align:right;padding:10px 6px;font-family:monospace;font-size:15px;color:#1a73e8;">${lambdaMin.toFixed(1)}</td>
+                                        <td style="text-align:right;padding:10px 6px;color:#999;">关节间隔数</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:10px 6px;font-weight:500;">λ<sub>max</sub> 波长上限</td>
+                                        <td style="text-align:right;padding:10px 6px;font-family:monospace;font-size:15px;color:#1a73e8;">${lambdaMax.toFixed(1)}</td>
+                                        <td style="text-align:right;padding:10px 6px;color:#999;">关节间隔数</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:10px 6px;font-weight:500;">λ<sub>cur</sub> 当前波长</td>
+                                        <td style="text-align:right;padding:10px 6px;font-family:monospace;font-size:15px;color:#0d652d;">${lambdaCur.toFixed(1)}</td>
+                                        <td style="text-align:right;padding:10px 6px;color:#999;">关节间隔数</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 6px;font-weight:500;">正弦步态时间</td>
+                                        <td style="text-align:right;padding:10px 6px;font-family:monospace;font-size:15px;color:#0d652d;">${sineTime}</td>
+                                        <td style="text-align:right;padding:10px 6px;color:#999;">ms</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-primary" id="motionParamsClose">确定</button>
+                        </div>
+                    </div>
+                `;
+                modalContainer.appendChild(overlay);
+
+                document.getElementById('motionParamsClose').addEventListener('click', function() {
+                    modalContainer.innerHTML = '';
+                });
+
+                setStatus(`运动参数: A_max=${aMax.toFixed(1)}°, V_max=${vMax.toFixed(1)}, λ=[${lambdaMin.toFixed(1)}~${lambdaMax.toFixed(1)}], λ_cur=${lambdaCur.toFixed(1)}, time=${sineTime}ms`, 'success');
+            }
+
+            // 此外也尝试从 localStorage 加载
+            try {
+                const saved = localStorage.getItem('control-designer-save');
+                if (saved) {
+                    const saveData = JSON.parse(saved);
+                    if (saveData.controls && Array.isArray(saveData.controls)) {
+                        controls = saveData.controls.map(c => ({ ...c }));
+                        nextId = saveData.nextId || (Math.max(...controls.map(c => c.id), 0) + 1);
+                        buttonCounter = saveData.buttonCounter || 0;
+                        switchCounter = saveData.switchCounter || 0;
+                        renderAllControls();
+                        updateUndoRedoButtons();
+                        setStatus('已从本地缓存加载布局');
+                    }
+                }
+            } catch (err) {}
+        })();
+    </script>
+</body>
+</html>

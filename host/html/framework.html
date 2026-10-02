@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仿生蛇组 · 调试上位机</title>
+    <style>
+        :root {
+            --nav-bg: #1a1d23;
+            --nav-hover: #2a2f38;
+            --nav-active: #2563eb;
+            --nav-text: #9aa0a6;
+            --nav-text-active: #ffffff;
+            --debug-bg: #1e1e1e;
+            --debug-title-bg: #2a2d35;
+            --debug-text: #dcdcdc;
+            --debug-border: #3a3f4a;
+            --resize-handle-size: 14px;
+            --transition: 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #0f1117;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ========== 顶部导航栏 ========== */
+        .main-nav {
+            display: flex;
+            align-items: center;
+            background: var(--nav-bg);
+            border-bottom: 1px solid #2a2d35;
+            padding: 0 12px;
+            height: 46px;
+            flex-shrink: 0;
+            z-index: 200;
+            gap: 2px;
+        }
+        .main-nav .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 16px;
+            margin-right: 6px;
+            border-right: 1px solid #2a2d35;
+            font-weight: 700;
+            font-size: 14px;
+            color: #e0e4ea;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+        .main-nav .nav-brand .brand-icon {
+            font-size: 18px;
+        }
+        .main-nav .nav-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--nav-text);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            font-family: inherit;
+            letter-spacing: 0.01em;
+            position: relative;
+        }
+        .main-nav .nav-tab:hover {
+            background: var(--nav-hover);
+            color: #c0c6ce;
+        }
+        .main-nav .nav-tab.active {
+            background: var(--nav-active);
+            color: var(--nav-text-active);
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+        }
+        .main-nav .nav-tab .tab-icon {
+            font-size: 15px;
+            width: 18px;
+            text-align: center;
+        }
+        .main-nav .nav-spacer {
+            flex: 1;
+        }
+        .main-nav .nav-debug-indicator {
+            font-size: 11px;
+            color: #6b7280;
+            padding: 4px 10px;
+            background: #22262e;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .main-nav .nav-debug-indicator .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #34d399;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ========== 主内容区 ========== */
+        .content-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #0f1117;
+        }
+        .content-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+            background: #f0f2f5;
+        }
+        .content-frame.active {
+            display: block;
+        }
+
+        /* ========== 浮动调试窗口 ========== */
+        .debug-window {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            width: 540px;
+            height: 300px;
+            min-width: 300px;
+            min-height: 150px;
+            max-width: 92vw;
+            max-height: 85vh;
+            background: #1a1c22;
+            border: 1px solid var(--debug-border);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow: hidden;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .debug-window.collapsed {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        .debug-window .debug-titlebar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px 7px 14px;
+            background: var(--debug-title-bg);
+            border-bottom: 1px solid var(--debug-border);
+            cursor: move;
+            flex-shrink: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .debug-window .debug-titlebar .debug-title {
+            font-weight: 600;
+            font-size: 12.5px;
+            color: #c0c6ce;
+            letter-spacing: 0.03em;
+            flex: 1;
+            white-space: nowrap;
+        }
+        .debug-window .debug-titlebar .debug-title-icon {
+            font-size: 14px;
+        }
+        .debug-window .debug-titlebar button {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .debug-window .debug-titlebar button:hover {
+            background: #3a3f4a;
+            color: #c0c6ce;
+        }
+        .debug-window .debug-titlebar .debug-filter {
+            width: 110px;
+            padding: 3px 8px;
+            font-size: 11px;
+            background: #1a1c22;
+            border: 1px solid #3a3f4a;
+            border-radius: 4px;
+            color: #c0c6ce;
+            outline: none;
+            font-family: inherit;
+        }
+        .debug-window .debug-titlebar .debug-filter:focus {
+            border-color: #4a90d9;
+        }
+        .debug-window .debug-titlebar .debug-filter::placeholder {
+            color: #555;
+        }
+
+        .debug-window .debug-log-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 10px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'SF Mono', monospace;
+            font-size: 11.5px;
+            line-height: 1.7;
+            color: var(--debug-text);
+            background: var(--debug-bg);
+        }
+        .debug-window .debug-log-area::-webkit-scrollbar {
+            width: 5px;
+        }
+        .debug-window .debug-log-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .debug-window .debug-log-area::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+        .debug-log-line {
+            border-bottom: 1px solid #2a2a2a;
+            padding: 1px 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .debug-log-line .log-time {
+            color: #666;
+            margin-right: 8px;
+        }
+        .debug-log-line.log-info .log-level { color: #4a9eff; }
+        .debug-log-line.log-warn .log-level { color: #f59e0b; }
+        .debug-log-line.log-error .log-level { color: #ef4444; }
+        .debug-log-line.log-success .log-level { color: #34d399; }
+
+        .debug-window .debug-statusbar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 5px 14px;
+            background: #22262e;
+            border-top: 1px solid var(--debug-border);
+            font-size: 11px;
+            color: #6b7280;
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+        }
+        .debug-window .debug-statusbar span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .debug-window .debug-statusbar .status-sep {
+            width: 1px;
+            height: 14px;
+            background: #3a3f4a;
+        }
+
+        /* 调整大小手柄 */
+        .debug-window .resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: var(--resize-handle-size);
+            height: var(--resize-handle-size);
+            cursor: nwse-resize;
+            z-index: 10;
+        }
+        .debug-window .resize-handle::after {
+            content: '';
+            position: absolute;
+            right: 3px;
+            bottom: 3px;
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid #555;
+            border-bottom: 2px solid #555;
+        }
+
+        /* 拖拽时的遮罩 */
+        .drag-mask {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            cursor: move;
+            display: none;
+        }
+        .drag-mask.active {
+            display: block;
+        }
+        .resize-mask {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            cursor: nwse-resize;
+            display: none;
+        }
+        .resize-mask.active {
+            display: block;
+        }
+
+        /* ========== 折叠后的悬浮按钮 ========== */
+        .debug-toggle-btn {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 1001;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
+            transition: var(--transition);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .debug-toggle-btn.show {
+            display: flex;
+        }
+        .debug-toggle-btn:hover {
+            background: #1d4ed8;
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.55);
+        }
+        .debug-toggle-btn .badge-count {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 10px;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            font-weight: 600;
+            display: none;
+        }
+        .debug-toggle-btn .badge-count.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== 顶部导航栏 ==================== -->
+    <nav class="main-nav" id="mainNav">
+        <div class="nav-brand">
+            <span class="brand-icon">🐍</span>
+            <span>调试上位机</span>
+        </div>
+        <button class="nav-tab active" data-tab="0">
+            <span class="tab-icon">📡</span> 蓝牙连接界面
+        </button>
+        <button class="nav-tab" data-tab="1">
+            <span class="tab-icon">🎛️</span> 自定义控件界面
+        </button>
+        <button class="nav-tab" data-tab="2">
+            <span class="tab-icon">🔧</span> 舵机校准界面
+        </button>
+        <button class="nav-tab" data-tab="3">
+            <span class="tab-icon">🎬</span> 动作组界面
+        </button>
+        <span class="nav-spacer"></span>
+        <div class="nav-debug-indicator">
+            <span class="dot"></span>
+            <span id="navLogCount">日志: 0</span>
+        </div>
+    </nav>
+
+    <!-- ==================== 主内容区（iframe） ==================== -->
+    <main class="content-area" id="contentArea">
+        <iframe class="content-frame active" id="frame0" src="BLE_Connent.html" allow="clipboard-write; bluetooth"></iframe>
+        <iframe class="content-frame" id="frame1" src="Custom_Control.html" allow="clipboard-write"></iframe>
+        <iframe class="content-frame" id="frame2" src="Manual_Calibration.html" allow="clipboard-write"></iframe>
+        <iframe class="content-frame" id="frame3" src="ActionGroup.html" allow="clipboard-write"></iframe>
+    </main>
+
+    <!-- ==================== 浮动调试窗口 ==================== -->
+    <div class="debug-window" id="debugWindow">
+        <div class="debug-titlebar" id="debugTitlebar">
+            <span class="debug-title-icon">📋</span>
+            <span class="debug-title">调试窗口</span>
+            <input type="text" class="debug-filter" id="debugFilter" placeholder="过滤日志...">
+            <button id="btnSaveLog" title="保存日志">💾</button>
+            <button id="btnClearLog" title="清空日志">🗑️</button>
+            <button id="btnCollapseDebug" title="折叠窗口">─</button>
+        </div>
+        <div class="debug-log-area" id="debugLogArea">
+            <div class="debug-log-line log-info">
+                <span class="log-time">--:--:--</span>
+                <span class="log-level">[INFO]</span> 调试上位机已启动，等待操作...
+            </div>
+        </div>
+        <div class="debug-statusbar" id="debugStatusbar">
+            <span id="debugScanInfo">⚡ 未扫描 | 设备:0 | 连接:0</span>
+            <span class="status-sep"></span>
+            <span id="debugAdapterInfo">📡 适配器: 未连接</span>
+        </div>
+        <div class="resize-handle" id="resizeHandle"></div>
+    </div>
+
+    <!-- ==================== 折叠状态悬浮按钮 ==================== -->
+    <button class="debug-toggle-btn" id="debugToggleBtn" title="展开调试窗口">
+        📋
+        <span class="badge-count" id="badgeCount">0</span>
+    </button>
+
+    <!-- ==================== 拖拽/缩放遮罩层 ==================== -->
+        <div class="drag-mask" id="dragMask"></div>
+    <div class="resize-mask" id="resizeMask"></div>
+
+    <script>
+        (function() {
+            // ==================== DOM 引用 ====================
+            const navTabs = document.querySelectorAll('.nav-tab');
+            const contentFrames = document.querySelectorAll('.content-frame');
+            const debugWindow = document.getElementById('debugWindow');
+            const debugTitlebar = document.getElementById('debugTitlebar');
+            const debugLogArea = document.getElementById('debugLogArea');
+            const debugFilter = document.getElementById('debugFilter');
+            const debugScanInfo = document.getElementById('debugScanInfo');
+            const debugAdapterInfo = document.getElementById('debugAdapterInfo');
+            const resizeHandle = document.getElementById('resizeHandle');
+            const debugToggleBtn = document.getElementById('debugToggleBtn');
+            const badgeCount = document.getElementById('badgeCount');
+            const dragMask = document.getElementById('dragMask');
+            const resizeMask = document.getElementById('resizeMask');
+            const navLogCount = document.getElementById('navLogCount');
+            const btnSaveLog = document.getElementById('btnSaveLog');
+            const btnClearLog = document.getElementById('btnClearLog');
+            const btnCollapseDebug = document.getElementById('btnCollapseDebug');
+
+            let currentTab = 0;
+            let logLines = [];        // 所有日志行 {time, level, message, html}
+            let unreadCount = 0;
+            let isDebugCollapsed = false;
+
+            // ==================== WebSocket 通信 ====================
+            let ws = null;
+            let wsReconnectTimer = null;
+            let wsPort = 0;
+
+            function getActiveFrame() {
+                return contentFrames[currentTab];
+            }
+
+            function postToActiveFrame(data) {
+                try {
+                    const frame = getActiveFrame();
+                    if (frame && frame.contentWindow) {
+                        frame.contentWindow.postMessage(data, '*');
+                    }
+                } catch(e) {}
+            }
+
+            function postToAllFrames(data) {
+                contentFrames.forEach(frame => {
+                    try {
+                        if (frame.contentWindow) {
+                            frame.contentWindow.postMessage(data, '*');
+                        }
+                    } catch(e) {}
+                });
+            }
+
+            // 转发消息到指定索引的 iframe
+            function _forwardToIframe(index, data) {
+                try {
+                    const frame = contentFrames[index];
+                    if (frame && frame.contentWindow) {
+                        frame.contentWindow.postMessage(data, '*');
+                    }
+                } catch(e) {}
+            }
+
+            // 广播到除 BLE 界面以外的 iframe（BLE_Connent 是状态源）
+            function postBLEStatusToModules(status) {
+                for (let i = 1; i < contentFrames.length; i++) {  // 跳过 frame0 (BLE_Connent)
+                    try {
+                        const frame = contentFrames[i];
+                        if (frame.contentWindow) {
+                            frame.contentWindow.postMessage({ type: 'ws-event', eventType: 'ble:status', data: status }, '*');
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            function connectWebSocket() {
+                if (ws && ws.readyState === WebSocket.OPEN) return;
+
+                // 使用页面自身的端口（HTTP 和 WS 共用同一端口）
+                wsPort = parseInt(window.location.port) || 9876;
+
+                doConnect();
+            }
+
+            function doConnect() {
+                const url = `ws://127.0.0.1:${wsPort}`;
+                addSystemLog(`正在连接后端服务... ${url}`);
+
+                try {
+                    ws = new WebSocket(url);
+                } catch(e) {
+                    addLogEntry('error', `WebSocket 创建失败: ${e.message}`);
+                    scheduleReconnect();
+                    return;
+                }
+
+                ws.onopen = function() {
+                    addSystemLog('已连接到后端服务');
+                    // 通知所有 iframe 重新加载存储数据
+                    postToAllFrames({ type: 'ws-event', eventType: 'ws:connected', data: {} });
+                    if (wsReconnectTimer) {
+                        clearTimeout(wsReconnectTimer);
+                        wsReconnectTimer = null;
+                    }
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        handleWsMessage(msg);
+                    } catch(e) {
+                        console.error('WS 消息解析失败:', e);
+                    }
+                };
+
+                ws.onclose = function() {
+                    addLogEntry('warn', '与后端服务的连接已断开');
+                    scheduleReconnect();
+                };
+
+                ws.onerror = function(err) {
+                    console.error('WebSocket 错误:', err);
+                };
+            }
+
+            function scheduleReconnect() {
+                if (wsReconnectTimer) return;
+                wsReconnectTimer = setTimeout(() => {
+                    wsReconnectTimer = null;
+                    addSystemLog('尝试重新连接...');
+                    connectWebSocket();
+                }, 3000);
+            }
+
+            function sendToBackend(type, data) {
+                // BLE 命令和控件命令暂时全部走后端 WebSocket（模拟模式）
+                // Web Bluetooth 桥接仅作备用，用户可手动调用
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type, data: data || {} }));
+                } else {
+                    addLogEntry('warn', `无法发送 ${type}: 未连接到后端`);
+                }
+            }
+
+            function handleWsMessage(msg) {
+                const { type, data } = msg;
+
+                // 日志消息 - 显示在调试窗口
+                if (type === 'log:message') {
+                    addLogEntry(data.level || 'info', data.message);
+                }
+
+                // 状态更新（仅扫描信息，适配器状态由 broadcastBLEStatus 统一管理）
+                if (type === 'status:update') {
+                    if (data.scanInfo !== undefined) {
+                        debugScanInfo.textContent = data.scanInfo;
+                    }
+                }
+
+                // 转发 WS 消息到所有 iframe（让各模块响应）
+                postToAllFrames({
+                    type: 'ws-event',
+                    eventType: type,
+                    data: data
+                });
+            }
+
+            // 启动时连接
+            setTimeout(connectWebSocket, 500);
+
+            // ==================== BLE 管理层 ====================
+            // 框架统一管理 BLE 连接，各 iframe 通过 postMessage 调用
+            let bleDevice = null;
+            let bleServer = null;
+            let bleServices = {};
+            let bleChars = {};
+            let globalTxChar = null;    // { serviceUuid, charUuid, characteristic }
+            let globalRxChar = null;    // { serviceUuid, charUuid, characteristic }
+            let calibrationActive = false;  // 校准模式状态
+            let lastBLEStatus = {};         // 缓存最近 BLE 状态
+            let notifyCleanups = {};
+
+            // ===== 动作组前端播放器 =====
+            let actionPlayback = {
+                steps: [], currentIndex: 0, timer: null, playing: false, paused: false,
+                loop: null, loopCount: 0, uiLoop: false
+            };
+
+            function _startActionPlayback(data) {
+                // 如果是从暂停恢复，直接继续播放
+                if (actionPlayback.paused && actionPlayback.steps.length > 0) {
+                    actionPlayback.paused = false;
+                    actionPlayback.playing = true;
+
+                    // 关键修复：如果用户在循环节终点刚执行完、跳回起点的回调还没触发时暂停，
+                    // currentIndex 已被递增出循环节，但 loopCount 仍有剩余。
+                    // 恢复时需要把 currentIndex 重置回循环起点，否则循环会被跳过。
+                    const { loop, loopCount, currentIndex } = actionPlayback;
+                    if (loop && loop.enabled && loopCount >= 1 && currentIndex > loop.end) {
+                        actionPlayback.currentIndex = loop.start;
+                        addLogEntry('info', `恢复循环: 剩余${loopCount}次, 回到Step ${loop.start + 1}`);
+                    }
+
+                    addLogEntry('info', '继续播放...');
+                    _playNextStep();
+                    return;
+                }
+                // 静默清理上一次播放状态，不通知（避免与 play 的按钮启用时序冲突）
+                _silentCleanup();
+                const steps = data.steps || [];
+                if (!steps.length) return;
+                actionPlayback.steps = steps;
+                actionPlayback.currentIndex = 0;
+                actionPlayback.playing = true;
+
+                // 解析循环配置：优先 JSON 循环，其次 UI 循环开关
+                const jsonLoop = data.jsonLoop;
+                if (jsonLoop && jsonLoop.enabled) {
+                    actionPlayback.loop = {
+                        enabled: true,
+                        count: jsonLoop.count || -1,
+                        start: jsonLoop.startIndex || 0,
+                        end: (jsonLoop.endIndex !== undefined) ? jsonLoop.endIndex : steps.length - 1,
+                        delayBetween: jsonLoop.delayBetweenLoops || 0,
+                    };
+                    actionPlayback.loopCount = actionPlayback.loop.count;
+                    addLogEntry('info', `内部循环: 区间[${actionPlayback.loop.start}-${actionPlayback.loop.end}] ×${actionPlayback.loop.count === -1 ? '∞' : actionPlayback.loop.count}`);
+                } else {
+                    actionPlayback.loop = null;
+                }
+                // UI 循环开关（独立于 JSON 内部循环，控制整个序列结束后是否从头重播）
+                actionPlayback.uiLoop = !!data.loop;
+                if (actionPlayback.uiLoop) addLogEntry('info', 'UI 循环已开启：序列结束将自动重播');
+
+                addLogEntry('info', `开始播放: ${steps.length} 个步骤`);
+                _playNextStep();
+            }
+
+            function _playNextStep() {
+                if (!actionPlayback.playing) return;
+                const { steps, currentIndex, loop } = actionPlayback;
+                if (currentIndex >= steps.length) {
+                    // 全部步骤执行完毕
+                    if (actionPlayback.uiLoop && actionPlayback.playing) {
+                        addLogEntry('info', 'UI 循环：重新播放');
+                        actionPlayback.currentIndex = 0;
+                        actionPlayback.loopCount = actionPlayback.loop ? actionPlayback.loop.count : 0;
+                        setTimeout(_playNextStep, 500);
+                    } else {
+                        _finishPlayback('completed');
+                    }
+                    return;
+                }
+                const step = steps[currentIndex];
+                if (!step) { _finishPlayback('completed'); return; }
+
+                addLogEntry('info', `执行 Step ${currentIndex + 1}/${steps.length}`);
+                const servos = step.servos || [];
+                const payload = [];
+                for (const s of servos) {
+                    const pos = s.position || 500;
+                    const time = s.time || 200;
+                    payload.push(s.id || 0, pos & 0xFF, (pos >> 8) & 0xFF, time & 0xFF, (time >> 8) & 0xFF);
+                }
+                const hex = buildBinaryPacket(0x02, payload);
+                addLogEntry('info', `[发送] 动作组 Step${currentIndex + 1}: ${hex}`);
+                const bleFrame = contentFrames[0];
+                if (bleFrame && bleFrame.contentWindow) {
+                    bleFrame.contentWindow.postMessage({
+                        type: 'ble-global-write', data: hex, hex: true,
+                        cmdType: 'action:play:step' + (currentIndex + 1)
+                    }, '*');
+                }
+                postToAllFrames({ type: 'ws-event', eventType: 'action:playbackProgress',
+                    data: { currentStep: currentIndex, totalSteps: steps.length, status: 'playing' } });
+
+                const maxTime = Math.max(...servos.map(s => s.time || 200), 0);
+                const delay = Math.max(step.delay || 0, maxTime);
+
+                // 判断是否该步是循环终点
+                const isLoopEnd = loop && loop.enabled && currentIndex === loop.end;
+                actionPlayback.currentIndex++;
+
+                if (isLoopEnd) {
+                    const betweenDelay = loop.delayBetween || 0;
+                    if (loop.count === -1) {
+                        // 无限循环（loopCount 恒为 -1）
+                        actionPlayback.timer = setTimeout(() => {
+                            actionPlayback.currentIndex = loop.start;
+                            _playNextStep();
+                        }, delay + betweenDelay);
+                    } else {
+                        // loopCount >= 1：递减后继续循环
+                        // loopCount = 0：JSON 循环节已耗尽
+                        //     + uiLoop 开 → 整个序列重启（loopCount 重置）
+                        //     + uiLoop 关 → 跳出循环节，继续执行后续步骤
+                        actionPlayback.loopCount--;
+                        if (actionPlayback.loopCount >= 1) {
+                            // 仍有剩余循环次数，跳回循环起点
+                            actionPlayback.timer = setTimeout(() => {
+                                actionPlayback.currentIndex = loop.start;
+                                _playNextStep();
+                            }, delay + betweenDelay);
+                        } else {
+                            // 循环节已耗尽，继续执行后续步骤（让 currentIndex 自然推进到序列末尾）
+                            // uiLoop 的重置逻辑统一放在 currentIndex >= steps.length 处处理，
+                            // 避免在此处直接重置 currentIndex 导致跳过循环节之后的步骤。
+                            actionPlayback.timer = setTimeout(_playNextStep, delay);
+                        }
+                    }
+                } else {
+                    actionPlayback.timer = setTimeout(_playNextStep, delay);
+                }
+            }
+
+            function _finishPlayback(status) {
+                actionPlayback.playing = false;
+                actionPlayback.paused = false;
+                if (actionPlayback.timer) { clearTimeout(actionPlayback.timer); actionPlayback.timer = null; }
+                postToAllFrames({ type: 'ws-event', eventType: 'action:playbackProgress', data: { status } });
+            }
+
+            function _pauseActionPlayback() {
+                if (!actionPlayback.playing) return;
+                actionPlayback.playing = false;
+                actionPlayback.paused = true;
+                if (actionPlayback.timer) { clearTimeout(actionPlayback.timer); actionPlayback.timer = null; }
+                postToAllFrames({ type: 'ws-event', eventType: 'action:playbackProgress', data: { status: 'paused' } });
+            }
+
+            function _stopActionPlayback() {
+                _finishPlayback('stopped');
+                _silentCleanup();
+            }
+
+            function _silentCleanup() {
+                if (actionPlayback.timer) { clearTimeout(actionPlayback.timer); actionPlayback.timer = null; }
+                actionPlayback.steps = [];
+                actionPlayback.currentIndex = 0;
+                actionPlayback.playing = false;
+                actionPlayback.paused = false;
+                actionPlayback.loop = null;
+                actionPlayback.loopCount = 0;
+                actionPlayback.uiLoop = false;
+            }
+
+            function isBLEConnected() {
+                return !!(bleDevice && bleDevice.gatt && bleDevice.gatt.connected);
+            }
+
+            function getBLEStatus() {
+                return {
+                    connected: isBLEConnected(),
+                    device: bleDevice ? { name: bleDevice.name, id: bleDevice.id } : null,
+                    txBound: !!globalTxChar,
+                    rxBound: !!globalRxChar,
+                    calibrationActive: !!calibrationActive,
+                };
+            }
+
+            // 广播 BLE 状态到所有 iframe
+            // 构建协议二进制包（返回 HEX 字符串）
+            function buildBinaryPacket(cmd, payloadBytes) {
+                const cmdNum = typeof cmd === 'string' ? parseInt(cmd, 16) : cmd;
+                if (!Array.isArray(payloadBytes)) payloadBytes = [];
+                const len = payloadBytes.length;
+                let sum = cmdNum + len;
+                for (const b of payloadBytes) sum += b;
+                sum = sum & 0xFF;
+                const cs = (0xFF - sum) & 0xFF;
+                const all = [0xAA, cmdNum, len, ...payloadBytes, cs, 0x55];
+                return all.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('');
+            }
+
+            function broadcastBLEStatus(status) {
+                const st = status || getBLEStatus();
+                const merged = Object.assign({}, st, { calibrationActive: !!calibrationActive });
+                lastBLEStatus = merged;
+                postBLEStatusToModules(merged);
+                debugAdapterInfo.textContent = st.connected
+                    ? `已连接 [${st.device?.name || '设备'}] | Tx:${st.txBound ? '绑定' : '未绑'}`
+                    : '蓝牙: 未连接';
+            }
+
+            // 查找特征（通过 UUID）
+            function findBLEChar(svcUuid, charUuid) {
+                for (const [su, svc] of Object.entries(bleServices)) {
+                    if (su === svcUuid.toLowerCase()) {
+                        const ch = svc.characteristics.find(c => c.uuid === charUuid.toLowerCase());
+                        if (ch && ch._characteristic) return ch._characteristic;
+                    }
+                }
+                return null;
+            }
+
+            // 断开设备
+            async function bleDisconnect() {
+                if (bleDevice && bleDevice.gatt.connected) {
+                    await bleDevice.gatt.disconnect();
+                }
+                bleCleanup();
+            }
+
+            // 连接设备
+            async function bleConnect() {
+                if (!bleDevice) throw new Error('请先扫描设备');
+                if (bleDevice.gatt.connected) return;
+                bleServer = await bleDevice.gatt.connect();
+                addLogEntry('info', `蓝牙已连接: ${bleDevice.name}`);
+                await bleDiscoverServices();
+                broadcastBLEStatus();
+            }
+
+            function bleCleanup() {
+                Object.values(notifyCleanups).forEach(fn => { try { fn(); } catch(e) {} });
+                notifyCleanups = {};
+                globalTxChar = null;
+                globalRxChar = null;
+                bleServer = null;
+                bleServices = {};
+                bleChars = {};
+                broadcastBLEStatus();
+                addLogEntry('info', '蓝牙已断开，绑定已清除');
+            }
+
+            // 发现服务
+            async function bleDiscoverServices() {
+                if (!bleServer) return;
+                bleServices = {};
+                bleChars = {};
+                const services = await bleServer.getPrimaryServices();
+                for (const svc of services) {
+                    const sUuid = svc.uuid.toLowerCase();
+                    const chars = await svc.getCharacteristics();
+                    const charList = chars.map(c => {
+                        const props = [];
+                        if (c.properties.read) props.push('Read');
+                        if (c.properties.write) props.push('Write');
+                        if (c.properties.writeWithoutResponse) props.push('WriteWithoutResponse');
+                        if (c.properties.notify) props.push('Notify');
+                        if (c.properties.indicate) props.push('Indicate');
+                        ch = { uuid: c.uuid.toLowerCase(), name: c.uuid.substring(0, 8) + '...', properties: props.join(', '), _characteristic: c };
+                        bleChars[c.uuid.toLowerCase()] = { ...ch, serviceUuid: sUuid };
+                        return ch;
+                    });
+                    bleServices[sUuid] = { name: sUuid.substring(0, 8) + '...', characteristics: charList };
+                }
+                sendServicesToIrames();
+            }
+
+            function sendServicesToIrames() {
+                postToAllFrames({ type: 'ws-event', eventType: 'ble:services', data: { services: bleServices } });
+            }
+
+            // 写特征
+            async function bleWrite(svcUuid, charUuid, data, hex) {
+                if (!isBLEConnected()) throw new Error('蓝牙未连接');
+                const char = findBLEChar(svcUuid, charUuid);
+                if (!char) throw new Error('特征未找到');
+                let buf;
+                if (hex) {
+                    const cleaned = String(data).replace(/\s+/g, '');
+                    const bytes = [];
+                    for (let i = 0; i < cleaned.length; i += 2) bytes.push(parseInt(cleaned.substring(i, i + 2), 16));
+                    buf = new Uint8Array(bytes);
+                } else {
+                    buf = new TextEncoder().encode(String(data));
+                }
+                await char.writeValue(buf);
+            }
+
+            // 通过全局 Tx 发送
+            async function bleWriteGlobal(data, hex) {
+                const tx = window.__bleGlobalTx;
+                if (!tx || !tx.characteristic) throw new Error('未绑定全局发送特征');
+                let buf;
+                if (hex) {
+                    const cleaned = String(data).replace(/\s+/g, '');
+                    const bytes = [];
+                    for (let i = 0; i < cleaned.length; i += 2) bytes.push(parseInt(cleaned.substring(i, i + 2), 16));
+                    buf = new Uint8Array(bytes);
+                } else {
+                    buf = new TextEncoder().encode(String(data));
+                }
+                await tx.characteristic.writeValue(buf);
+            }
+
+            // 绑定全局特征
+            function bleBindTx(svcUuid, charUuid) {
+                if (globalTxChar) throw new Error('已有全局发送绑定');
+                globalTxChar = { serviceUuid: svcUuid, charUuid: charUuid };
+                addLogEntry('info', `全局发送特征已绑定: ${charUuid.substring(0, 8)}...`);
+                broadcastBLEStatus();
+            }
+            function bleBindRx(svcUuid, charUuid) {
+                if (globalRxChar) throw new Error('已有全局接收绑定');
+                globalRxChar = { serviceUuid: svcUuid, charUuid: charUuid };
+                // 自动订阅通知
+                bleSubscribe(svcUuid, charUuid);
+                addLogEntry('info', `全局接收特征已绑定: ${charUuid.substring(0, 8)}...`);
+                broadcastBLEStatus();
+            }
+            function bleUnbindTx() { globalTxChar = null; broadcastBLEStatus(); }
+            function bleUnbindRx() {
+                if (globalRxChar) {
+                    const key = `${globalRxChar.serviceUuid}:${globalRxChar.charUuid}`;
+                    if (notifyCleanups[key]) { notifyCleanups[key](); delete notifyCleanups[key]; }
+                    globalRxChar = null;
+                }
+                broadcastBLEStatus();
+            }
+
+            // 读特征
+            async function bleRead(svcUuid, charUuid) {
+                if (!isBLEConnected()) throw new Error('蓝牙未连接');
+                const char = findBLEChar(svcUuid, charUuid);
+                if (!char) throw new Error('特征未找到');
+                const val = await char.readValue();
+                const bytes = new Uint8Array(val.buffer);
+                return { hex: Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' '), bytes };
+            }
+
+            // 订阅通知
+            async function bleSubscribe(svcUuid, charUuid) {
+                if (!isBLEConnected()) throw new Error('蓝牙未连接');
+                const char = findBLEChar(svcUuid, charUuid);
+                if (!char) throw new Error('特征未找到');
+                const key = `${svcUuid}:${charUuid}`;
+                if (notifyCleanups[key]) notifyCleanups[key]();
+                const handler = (event) => {
+                    const bytes = new Uint8Array(event.target.value.buffer);
+                    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+                    // 广播原始数据
+                    postToAllFrames({ type: 'ws-event', eventType: 'ble:dataReceived', data: { svcUuid, charUuid, hex, raw: Array.from(bytes) } });
+                    // 尝试解析协议包
+                    parseBLEPacket(Array.from(bytes));
+                };
+                char.addEventListener('characteristicvaluechanged', handler);
+                await char.startNotifications();
+                notifyCleanups[key] = () => {
+                    char.removeEventListener('characteristicvaluechanged', handler);
+                    char.stopNotifications().catch(() => {});
+                };
+            }
+
+            // ==================== 二进制协议包构造 ====================
+            function buildBlePacket(cmd, payloadBytes) {
+                const len = payloadBytes.length;
+                let sum = (cmd + len) & 0xFF;
+                for (let b of payloadBytes) sum = (sum + b) & 0xFF;
+                const cs = (0xFF - sum) & 0xFF;
+                const bytes = [0xAA, cmd, len, ...payloadBytes, cs, 0x55];
+                return bytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+            }
+            function buildCalibrationAdjust(id, pos, offset) {
+                const offs = offset >= 0 ? (offset & 0xFF) : (256 + offset) & 0xFF;
+                return buildBlePacket(0x01, [id, pos & 0xFF, (pos >> 8) & 0xFF, offs]);
+            }
+            function buildCalibrationSave(id, pos, offset) {
+                const offs = offset >= 0 ? (offset & 0xFF) : (256 + offset) & 0xFF;
+                return buildBlePacket(0x03, [id, pos & 0xFF, (pos >> 8) & 0xFF, offs]);
+            }
+            function buildCalibrationSimple(cmd) {
+                return buildBlePacket(cmd, []);
+            }
+            function buildCalibrationChangeId(oldId, newId) {
+                return buildBlePacket(0x07, [oldId, newId]);
+            }
+            function buildActionStep(servos) {
+                const payload = [];
+                for (const s of servos) {
+                    payload.push(s.id, s.position & 0xFF, (s.position >> 8) & 0xFF, s.time & 0xFF, (s.time >> 8) & 0xFF);
+                }
+                return buildBlePacket(0x02, payload);
+            }
+            function buildActionSimple(cmd) {
+                return buildBlePacket(cmd, []);
+            }
+
+            // 解析收到的 BLE 二进制协议包
+            function parseBLEPacket(bytes) {
+                let i = 0;
+                while (i < bytes.length - 5) {
+                    if (bytes[i] !== 0xAA) { i++; continue; }
+                    const cmd = bytes[i + 1];
+                    const len = bytes[i + 2];
+                    const totalLen = 5 + len; // AA cmd len payload(len) cs 55
+                    if (i + totalLen > bytes.length) break;
+                    if (bytes[i + totalLen - 1] !== 0x55) { i++; continue; }
+                    
+                    const payload = bytes.slice(i + 3, i + 3 + len);
+                    // 校验
+                    let sum = (cmd + len) & 0xFF;
+                    for (let j = 0; j < len; j++) sum = (sum + payload[j]) & 0xFF;
+                    const expectedCs = (0xFF - sum) & 0xFF;
+                    if (bytes[i + 3 + len] === expectedCs) {
+                        // 分发
+                        switch (cmd) {
+                            case 0x04: { // 反馈
+                                const code = payload[0];
+                                const reason = payload.length > 1 ? payload[1] : null;
+                                const msgs = {0x01:'参数读取成功',0x02:'参数保存成功',0x03:'ID修改成功',0x10:'进入校准模式成功',0x11:'退出校准模式成功',0x12:'进入动作组模式成功',0x13:'退出动作组模式成功',0x14:'舵机掉电成功',0xFF:'操作失败'};
+                                postToAllFrames({ type: 'ws-event', eventType: 'protocol:feedback', data: { code, reason, message: msgs[code] || '未知' } });
+                                break;
+                            }
+                            case 0x06: { // 舵机参数
+                                const servos = [];
+                                for (let j = 0; j < payload.length; j += 4) {
+                                    if (j + 3 >= payload.length) break;
+                                    let offset = payload[j + 3];
+                                    if (offset > 127) offset = offset - 256;
+                                    servos.push({ id: payload[j], position: payload[j + 1] | (payload[j + 2] << 8), offset });
+                                }
+                                postToAllFrames({ type: 'ws-event', eventType: 'calibration:servoList', data: { servos } });
+                                break;
+                            }
+                            case 0x0D: { // 扫描位置
+                                const positions = [];
+                                for (let j = 0; j < payload.length; j += 3) {
+                                    if (j + 2 >= payload.length) break;
+                                    positions.push({ id: payload[j], position: payload[j + 1] | (payload[j + 2] << 8) });
+                                }
+                                postToAllFrames({ type: 'ws-event', eventType: 'action:scannedPositions', data: { positions } });
+                                break;
+                            }
+                        }
+                    }
+                    i += totalLen;
+                }
+            }
+
+            // ==================== Tab 切换 ====================
+            navTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const targetTab = parseInt(this.dataset.tab);
+                    if (targetTab === currentTab) return;
+
+                    // 更新导航状态
+                    navTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // 切换 iframe
+                    contentFrames.forEach(f => f.classList.remove('active'));
+                    contentFrames[targetTab].classList.add('active');
+
+                    currentTab = targetTab;
+                    addSystemLog('界面切换: ' + this.textContent.trim().replace(/\s+/g, ' '));
+                });
+            });
+
+            // ==================== 日志系统 ====================
+            function addSystemLog(message) {
+                addLogEntry('info', message);
+            }
+
+            function addLogEntry(level, message) {
+                const now = new Date();
+                const time = now.toLocaleTimeString('zh-CN', { hour12: false });
+                const levelUpper = level.toUpperCase();
+                const levelClass = level.toLowerCase();
+
+                const line = document.createElement('div');
+                line.className = 'debug-log-line log-' + levelClass;
+                line.innerHTML = `<span class="log-time">${time}</span><span class="log-level">[${levelUpper}]</span> ${escapeHtml(message)}`;
+
+                logLines.push({ time, level: levelUpper, message, html: line.outerHTML });
+
+                // 应用过滤器
+                const filterText = debugFilter.value.toLowerCase();
+                if (filterText === '' || message.toLowerCase().includes(filterText) || levelUpper.toLowerCase().includes(filterText)) {
+                    debugLogArea.appendChild(line);
+                } else {
+                    line.style.display = 'none';
+                    line.classList.add('filtered-out');
+                }
+
+                // 滚动到底部
+                debugLogArea.scrollTop = debugLogArea.scrollHeight;
+
+                // 限制日志行数
+                while (debugLogArea.children.length > 500) {
+                    const firstChild = debugLogArea.firstElementChild;
+                    if (firstChild) firstChild.remove();
+                }
+
+                // 更新未读计数（折叠时）
+                if (isDebugCollapsed) {
+                    unreadCount++;
+                    updateBadge();
+                }
+
+                // 更新顶部导航栏日志计数
+                navLogCount.textContent = '日志: ' + logLines.length;
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function updateBadge() {
+                if (unreadCount > 0) {
+                    badgeCount.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                    badgeCount.classList.add('show');
+                } else {
+                    badgeCount.classList.remove('show');
+                }
+            }
+
+            // ==================== 日志过滤 ====================
+            debugFilter.addEventListener('input', function() {
+                const filterText = this.value.toLowerCase();
+                const lines = debugLogArea.querySelectorAll('.debug-log-line');
+                lines.forEach(line => {
+                    const text = line.textContent.toLowerCase();
+                    if (filterText === '' || text.includes(filterText)) {
+                        line.style.display = '';
+                        line.classList.remove('filtered-out');
+                    } else {
+                        line.style.display = 'none';
+                        line.classList.add('filtered-out');
+                    }
+                });
+            });
+
+            // ==================== 保存日志 ====================
+            btnSaveLog.addEventListener('click', function() {
+                const visibleLines = [];
+                debugLogArea.querySelectorAll('.debug-log-line').forEach(line => {
+                    if (line.style.display !== 'none') {
+                        visibleLines.push(line.textContent);
+                    }
+                });
+                const text = visibleLines.join('\n');
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'debug-log-' + new Date().toISOString().slice(0, 10) + '.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            // ==================== 清空日志 ====================
+            btnClearLog.addEventListener('click', function() {
+                debugLogArea.innerHTML = '';
+                logLines = [];
+                unreadCount = 0;
+                updateBadge();
+                navLogCount.textContent = '日志: 0';
+                addSystemLog('日志已清空');
+            });
+
+            // ==================== 折叠/展开调试窗口 ====================
+            btnCollapseDebug.addEventListener('click', function() {
+                collapseDebugWindow();
+            });
+
+            debugToggleBtn.addEventListener('click', function() {
+                expandDebugWindow();
+            });
+
+            function collapseDebugWindow() {
+                isDebugCollapsed = true;
+                debugWindow.classList.add('collapsed');
+                debugToggleBtn.classList.add('show');
+                unreadCount = 0;
+                updateBadge();
+            }
+
+            function expandDebugWindow() {
+                isDebugCollapsed = false;
+                debugWindow.classList.remove('collapsed');
+                debugToggleBtn.classList.remove('show');
+                unreadCount = 0;
+                updateBadge();
+                debugLogArea.scrollTop = debugLogArea.scrollHeight;
+            }
+
+            // ==================== 拖拽调试窗口 ====================
+            let dragInfo = null;
+
+            debugTitlebar.addEventListener('mousedown', function(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+                e.preventDefault();
+                const rect = debugWindow.getBoundingClientRect();
+                dragInfo = {
+                    startMouseX: e.clientX,
+                    startMouseY: e.clientY,
+                    startLeft: rect.left,
+                    startTop: rect.top,
+                };
+                dragMask.classList.add('active');
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!dragInfo) return;
+                const dx = e.clientX - dragInfo.startMouseX;
+                const dy = e.clientY - dragInfo.startMouseY;
+                let newLeft = dragInfo.startLeft + dx;
+                let newTop = dragInfo.startTop + dy;
+
+                // 边界限制
+                const winW = debugWindow.offsetWidth;
+                const winH = debugWindow.offsetHeight;
+                newLeft = Math.max(0, Math.min(window.innerWidth - winW, newLeft));
+                newTop = Math.max(0, Math.min(window.innerHeight - winH, newTop));
+
+                debugWindow.style.right = 'auto';
+                debugWindow.style.bottom = 'auto';
+                debugWindow.style.left = newLeft + 'px';
+                debugWindow.style.top = newTop + 'px';
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (dragInfo) {
+                    dragInfo = null;
+                    dragMask.classList.remove('active');
+                }
+            });
+
+            // ==================== 缩放调试窗口 ====================
+            let resizeInfo = null;
+
+            resizeHandle.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = debugWindow.getBoundingClientRect();
+                resizeInfo = {
+                    startMouseX: e.clientX,
+                    startMouseY: e.clientY,
+                    startWidth: rect.width,
+                    startHeight: rect.height,
+                    startLeft: rect.left,
+                    startTop: rect.top,
+                };
+                resizeMask.classList.add('active');
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!resizeInfo) return;
+                const dx = e.clientX - resizeInfo.startMouseX;
+                const dy = e.clientY - resizeInfo.startMouseY;
+                let newWidth = resizeInfo.startWidth + dx;
+                let newHeight = resizeInfo.startHeight + dy;
+
+                // 最小/最大限制
+                newWidth = Math.max(300, Math.min(window.innerWidth * 0.92, newWidth));
+                newHeight = Math.max(150, Math.min(window.innerHeight * 0.85, newHeight));
+
+                debugWindow.style.width = newWidth + 'px';
+                debugWindow.style.height = newHeight + 'px';
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (resizeInfo) {
+                    resizeInfo = null;
+                    resizeMask.classList.remove('active');
+                }
+            });
+
+            // ==================== 接收子页面消息 ====================
+            window.addEventListener('message', function(e) {
+                const data = e.data;
+                if (!data || typeof data !== 'object') return;
+
+                // 子页面发送的日志（仅本地显示，不再转发到后端避免重复）
+                if (data.type === 'log') {
+                    addLogEntry(data.level || 'info', data.message);
+                }
+                // 子页面发送的状态更新
+                else if (data.type === 'status') {
+                    if (data.scanInfo !== undefined) debugScanInfo.textContent = data.scanInfo;
+                    if (data.adapterInfo !== undefined) debugAdapterInfo.textContent = data.adapterInfo;
+                }
+                // 子页面通过 postMessage 发送请求
+                else if (data.type === 'ws-send') {
+                    handleIframeRequest(data.wsType, data.wsData || {});
+                }
+                // BLE 连接状态由 BLE_Connent 主动上报
+                else if (data.type === 'ble-state') {
+                    broadcastBLEStatus(data.status);
+                }
+                // 校准模式状态变更
+                else if (data.type === 'cal-state') {
+                    calibrationActive = !!data.calibrationActive;
+                    // 用缓存的 BLE 状态 + 新 calibrationActive 合并广播
+                    const merged = Object.assign({}, lastBLEStatus, { calibrationActive });
+                    postBLEStatusToModules(merged);
+                }
+                // 下位机协议反馈 → 转发到对应界面
+                else if (data.type === 'cal:servoList' || data.type === 'cal:feedback') {
+                    _forwardToIframe(2, data);  // 界面3 = 校准
+                }
+                else if (data.type === 'action:scanResult' || data.type === 'action:feedback') {
+                    _forwardToIframe(3, data);  // 界面4 = 动作组
+                }
+                else if (data.type === 'control:motionParams') {
+                    _forwardToIframe(1, data);  // 界面2 = 自定义控件
+                }
+            });
+
+            // 统一处理 iframe 发来的请求
+            async function handleIframeRequest(type, data) {
+                addLogEntry('info', `[请求] ${type}`);
+                try {
+                    switch (type) {
+                        // === BLE 操作 ===
+                        case 'ble:connect': {
+                            if (!bleDevice) throw new Error('请先扫描设备');
+                            await bleConnect();
+                            break;
+                        }
+                        case 'ble:disconnect':
+                            await bleDisconnect();
+                            break;
+                        case 'ble:write':
+                            await bleWrite(data.serviceUuid, data.charUuid, data.data, data.hex !== false);
+                            break;
+                        case 'ble:read': {
+                            const result = await bleRead(data.serviceUuid, data.charUuid);
+                            postToAllFrames({ type: 'ws-event', eventType: 'ble:readResult', data: result });
+                            break;
+                        }
+                        case 'ble:subscribe':
+                            await bleSubscribe(data.serviceUuid, data.charUuid);
+                            break;
+                        case 'ble:bindTx':
+                            bleBindTx(data.serviceUuid, data.charUuid);
+                            break;
+                        case 'ble:bindRx':
+                            bleBindRx(data.serviceUuid, data.charUuid);
+                            break;
+                        case 'ble:unbindTx':
+                            bleUnbindTx();
+                            break;
+                        case 'ble:unbindRx':
+                            bleUnbindRx();
+                            break;
+
+                        // === 校准操作 → 通过全局 Tx 发送二进制协议包 ===
+                        case 'calibration:enterMode':
+                            if (!window.__bleGlobalTx || !window.__bleGlobalTx.characteristic) throw new Error('请先在蓝牙界面绑定全局发送特征');
+                            await bleWriteGlobal(buildCalibrationSimple(0x05), true);
+                            break;
+                        case 'calibration:exitMode':
+                            if (!window.__bleGlobalTx || !window.__bleGlobalTx.characteristic) throw new Error('请先在蓝牙界面绑定全局发送特征');
+                            await bleWriteGlobal(buildCalibrationSimple(0x09), true);
+                            break;
+                        case 'calibration:adjust':
+                            if (!window.__bleGlobalTx || !window.__bleGlobalTx.characteristic) throw new Error('未绑定全局发送特征');
+                            await bleWriteGlobal(buildCalibrationAdjust(data.servoId, data.position, data.offset || 0), true);
+                            break;
+                        case 'calibration:save':
+                            if (!window.__bleGlobalTx || !window.__bleGlobalTx.characteristic) throw new Error('未绑定全局发送特征');
+                            await bleWriteGlobal(buildCalibrationSave(data.servoId, data.position, data.offset || 0), true);
+                            break;
+                        case 'calibration:getParams':
+                            if (!window.__bleGlobalTx || !window.__bleGlobalTx.characteristic) throw new Error('未绑定全局发送特征');
+                            await bleWriteGlobal(buildCalibrationSimple(0x08), true);
+                            break;
+                        case 'calibration:changeId':
+                            if (!window.__bleGlobalTx || !window.__bleGlobalTx.characteristic) throw new Error('未绑定全局发送特征');
+                            await bleWriteGlobal(buildCalibrationChangeId(data.oldId, data.newId), true);
+                            break;
+
+                        case 'action:play':
+                            // 前端本地播放，不再转发后端
+                            _startActionPlayback(data);
+                            break;
+                        case 'action:pause':
+                            _pauseActionPlayback();
+                            break;
+                        case 'action:stop':
+                            _stopActionPlayback();
+                            break;
+
+                        // === 自定义控件 / 校准 / 动作组 → 转发到 BLE 界面执行 ===
+                        case 'control:sendPress':
+                        case 'control:sendRelease':
+                        case 'control:sendSwitch':
+                        case 'cal:toggleMode':
+                        case 'action:toggleMode':
+                        case 'action:powerOff':
+                            // 将写请求转发到 BLE_Connent iframe（它持有真实特征对象）
+                            try {
+                                const bleFrame = contentFrames[0];
+                                if (bleFrame && bleFrame.contentWindow) {
+                                    bleFrame.contentWindow.postMessage({
+                                        type: 'ble-global-write',
+                                        data: data.data || data.hex || '',
+                                        hex: data.hex !== false,
+                                        cmdType: type
+                                    }, '*');
+                                } else {
+                                    throw new Error('BLE 界面未加载');
+                                }
+                            } catch(e) {
+                                addLogEntry('error', `发送失败: ${e.message}`);
+                            }
+                            break;
+
+                        // === 校准/动作组协议指令（框架构建二进制包 → 转发 BLE_Connent）===
+                        case 'cal:sendCmd':
+                        case 'action:sendCmd':
+                        case 'control:sendCmd':
+                            try {
+                                const packet = buildBinaryPacket(data.cmd, data.payload || []);
+                                const bleFrame = contentFrames[0];
+                                if (bleFrame && bleFrame.contentWindow) {
+                                    bleFrame.contentWindow.postMessage({
+                                        type: 'ble-global-write',
+                                        data: packet,
+                                        hex: true,
+                                        cmdType: type + ':' + data.cmd
+                                    }, '*');
+                                }
+                            } catch(e) {
+                                addLogEntry('error', `协议发送失败: ${e.message}`);
+                            }
+                            break;
+
+                        // === 存储操作 → 后端 WebSocket（未连接时静默）===
+                        case 'storage:save':
+                        case 'storage:load':
+                            if (ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type, data }));
+                            }
+                            break;
+
+                        // === 其他 → 后端 WebSocket ===
+                        default:
+                            if (ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type, data }));
+                            } else {
+                                addLogEntry('warn', `无法处理 ${type}: 后端未连接`);
+                            }
+                    }
+                } catch (err) {
+                    addLogEntry('error', `${type} 失败: ${err.message}`);
+                    postToAllFrames({ type: 'ws-event', eventType: 'error', data: { type, message: err.message } });
+                }
+            }
+
+            // ==================== 键盘快捷键 ====================
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+` 切换调试窗口折叠
+                if (e.ctrlKey && e.key === '`') {
+                    e.preventDefault();
+                    if (isDebugCollapsed) {
+                        expandDebugWindow();
+                    } else {
+                        collapseDebugWindow();
+                    }
+                }
+                // Ctrl+1~4 切换界面
+                if (e.ctrlKey && e.key >= '1' && e.key <= '4') {
+                    e.preventDefault();
+                    const tabIndex = parseInt(e.key) - 1;
+                    navTabs[tabIndex].click();
+                }
+            });
+
+            // ==================== 系统启动日志 ====================
+            addSystemLog('蛇形机器人调试上位机已启动');
+            addSystemLog('默认界面: 蓝牙连接 | 浮动调试窗口已就绪');
+            addSystemLog('提示: 按 Ctrl+1~4 切换界面 | Ctrl+` 折叠/展开调试窗口');
+
+            console.log('✅ 统一调试上位机框架已就绪');
+            console.log('   Tab切换: 点击顶部导航栏或 Ctrl+1~4');
+            console.log('   浮动调试窗口: 可拖拽、缩放、折叠 (Ctrl+`)');
+            console.log('   日志通信: 子页面通过 postMessage 发送日志');
+        })();
+    </script>
+</body>
+</html>

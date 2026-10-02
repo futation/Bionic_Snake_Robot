@@ -1,0 +1,39 @@
+# ===== Node.js（host）=====
+node_modules/
+host/data/*
+!host/data/.gitkeep
+npm-debug.log*
+yarn-error.log*
+.package-lock.json
+
+# ===== 构建产物 =====
+build/
+build-cache/
+dist/
+*.pak
+
+# ===== 编译中间文件（固件）=====
+*.d
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+*.eep
+*.lst
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.vcxproj*
+*.sln
+
+# ===== 临时与系统文件 =====
+*.tmp
+*.log
+*.bak
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store

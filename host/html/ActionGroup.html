@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>动作组模式控制台</title>
+<style>
+  /* ========== 全局样式 ========== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    --bg-primary: #1a1d23;
+    --bg-secondary: #22262e;
+    --bg-tertiary: #2a2f38;
+    --bg-card: #272b34;
+    --border-color: #3a3f4a;
+    --border-focus: #5b9bd5;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted: #6b7280;
+    --accent-blue: #4a9eff;
+    --accent-blue-hover: #3a8eef;
+    --accent-green: #34d399;
+    --accent-green-dark: #059669;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-red-hover: #dc2626;
+    --accent-purple: #a78bfa;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --transition: all 0.2s ease;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 20px;
+    line-height: 1.6;
+  }
+
+  /* ========== 主容器 ========== */
+  .main-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ========== 页面标题 ========== */
+  .page-header {
+    text-align: center;
+    padding: 18px 0 8px 0;
+  }
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+  }
+  .page-header h1 span {
+    color: var(--accent-blue);
+  }
+  .page-header p {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  /* ========== 卡片 ========== */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+  }
+  .card:hover {
+    border-color: #4a5060;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon {
+    font-size: 16px;
+  }
+
+  /* ========== 模式开关卡片 ========== */
+  .mode-switch-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, #272b34 0%, #2a3040 100%);
+  }
+  .mode-switch-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .mode-switch-left .label {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .mode-switch-left .sublabel {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Toggle 开关 */
+  .toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .toggle {
+    position: relative;
+    width: 52px;
+    height: 28px;
+    cursor: pointer;
+  }
+  .toggle input { display: none; }
+  .toggle .slider {
+    position: absolute;
+    inset: 0;
+    background: #4a4f5a;
+    border-radius: 28px;
+    transition: var(--transition);
+  }
+  .toggle .slider::before {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: var(--transition);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .toggle input:checked + .slider {
+    background: var(--accent-green);
+  }
+  .toggle input:checked + .slider::before {
+    transform: translateX(24px);
+  }
+
+  .mode-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .mode-status .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #6b7280;
+    transition: var(--transition);
+  }
+  .mode-status .dot.active {
+    background: var(--accent-green);
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ========== 按钮 ========== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn:hover:not(:disabled) {
+    background: #3a3f4a;
+    border-color: #5a6070;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-blue-hover);
+    border-color: var(--accent-blue-hover);
+  }
+  .btn-success {
+    background: var(--accent-green-dark);
+    border-color: var(--accent-green-dark);
+    color: #fff;
+  }
+  .btn-success:hover:not(:disabled) {
+    background: #047857;
+    border-color: #047857;
+  }
+  .btn-danger {
+    background: var(--accent-red);
+    border-color: var(--accent-red);
+    color: #fff;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--accent-red-hover);
+    border-color: var(--accent-red-hover);
+  }
+  .btn-warning {
+    background: #b45309;
+    border-color: #b45309;
+    color: #fff;
+  }
+  .btn-warning:hover:not(:disabled) {
+    background: #92400e;
+  }
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .btn-icon {
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* ========== 舵机控制 ========== */
+  .servo-control-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ========== 扫描结果 ========== */
+  .scan-result-box {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    min-height: 70px;
+    max-height: 120px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    color: var(--accent-green);
+    line-height: 1.8;
+    margin: 12px 0;
+  }
+  .scan-result-box .placeholder {
+    color: var(--text-muted);
+    font-family: inherit;
+    font-style: italic;
+  }
+  .servo-item {
+    display: inline-block;
+    background: rgba(74, 158, 255, 0.1);
+    border: 1px solid rgba(74, 158, 255, 0.2);
+    border-radius: 4px;
+    padding: 2px 10px;
+    margin: 3px 4px;
+    font-size: 12px;
+    color: var(--accent-blue);
+  }
+  .servo-item .sid { color: var(--accent-orange); font-weight: 600; }
+  .servo-item .spos { color: var(--accent-green); }
+
+  .scan-action-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ========== JSON 编辑器 ========== */
+  .file-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+  .file-label .filename {
+    color: var(--accent-purple);
+    font-weight: 500;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 12px;
+    background: rgba(167, 139, 250, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .json-editor {
+    width: 100%;
+    min-height: 200px;
+    background: #1a1c22;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    color: var(--accent-green);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    tab-size: 2;
+  }
+  .json-editor:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.15);
+  }
+  .json-editor:read-only {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #14161a;
+  }
+  .json-editor::placeholder {
+    color: var(--text-muted);
+  }
+  /* 禁用的 toggle */
+  .toggle input:disabled + .slider {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .json-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  /* ========== 动作序列列表 ========== */
+  .sequence-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .sequence-controls .divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border-color);
+  }
+  .playback-buttons {
+    display: flex;
+    gap: 6px;
+  }
+
+  .step-list {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .step-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .step-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .step-list::-webkit-scrollbar-thumb {
+    background: #4a4f5a;
+    border-radius: 3px;
+  }
+
+  .step-item {
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .step-item:last-child { border-bottom: none; }
+  .step-item:hover { background: rgba(74, 158, 255, 0.05); }
+  .step-item.active {
+    background: rgba(74, 158, 255, 0.12);
+    border-left: 3px solid var(--accent-blue);
+  }
+  .step-item.playing {
+    background: rgba(52, 211, 153, 0.1);
+    border-left: 3px solid var(--accent-green);
+  }
+  .step-item.playing .step-header .step-index {
+    color: var(--accent-green);
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    user-select: none;
+  }
+  .step-header .play-indicator {
+    font-size: 12px;
+    color: var(--accent-green);
+    width: 16px;
+    text-align: center;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+    user-select: none;
+  }
+  .step-item:hover .play-indicator {
+    opacity: 0.35;
+  }
+  .step-item .play-indicator:hover {
+    opacity: 1;
+  }
+  .step-item.playing .play-indicator {
+    opacity: 1;
+  }
+  .step-header .step-index {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--accent-blue);
+    min-width: 56px;
+  }
+  .step-header .step-summary {
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+  .step-header .step-summary .highlight {
+    color: var(--accent-orange);
+    font-weight: 500;
+  }
+  .step-header .expand-icon {
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: transform 0.2s;
+  }
+  .step-item.expanded .step-header .expand-icon {
+    transform: rotate(90deg);
+  }
+
+  .step-detail {
+    display: none;
+    padding: 4px 16px 14px 42px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .step-item.expanded .step-detail {
+    display: block;
+  }
+  .step-detail .servo-detail-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    padding: 3px 10px;
+    margin: 3px 4px 3px 0;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 11.5px;
+  }
+  .step-detail .servo-detail-item .arrow { color: var(--text-muted); }
+  .step-detail .servo-detail-item .target { color: var(--accent-green); font-weight: 600; }
+  .step-detail .servo-detail-item .time { color: var(--accent-orange); }
+
+  /* 空状态 */
+  .step-list-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .step-list-empty .empty-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+    opacity: 0.4;
+  }
+
+  /* ========== 状态栏 ========== */
+  .status-bar {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 12.5px;
+    box-shadow: var(--shadow-sm);
+  }
+  .status-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: var(--transition);
+  }
+  .status-dot.idle { background: #6b7280; }
+  .status-dot.success { background: var(--accent-green); box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+  .status-dot.error { background: var(--accent-red); box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+  .status-dot.playing { background: var(--accent-orange); box-shadow: 0 0 6px rgba(245,158,11,0.5); animation: pulse 1s infinite; }
+  .status-message {
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--text-muted);
+  }
+  .status-badge.mode-active {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--accent-green);
+  }
+
+  /* ========== 弹窗 ========== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    min-width: 360px;
+    max-width: 480px;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-icon { font-size: 36px; text-align: center; margin-bottom: 12px; }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .modal-message {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  /* ========== Toast 通知 ========== */
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 18px;
+    font-size: 13px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideIn 0.3s ease;
+    max-width: 380px;
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .toast.success { border-left: 3px solid var(--accent-green); }
+  .toast.error { border-left: 3px solid var(--accent-red); }
+  .toast.info { border-left: 3px solid var(--accent-blue); }
+  .toast.warning { border-left: 3px solid var(--accent-orange); }
+
+  /* ========== 进度条（播放用） ========== */
+  .progress-bar-container {
+    width: 100%;
+    height: 3px;
+    background: var(--bg-primary);
+    border-radius: 2px;
+    margin-top: 10px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-bar-container.active { display: block; }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* ========== 辅助 ========== */
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .hidden { display: none !important; }
+  
+  .loop-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  /* 小号 toggle（循环开关）修正错位 */
+  .loop-label .toggle .slider::before {
+    width: 18px;
+    height: 18px;
+    left: 2px;
+    top: 2px;
+  }
+  .loop-label .toggle input:checked + .slider::before {
+    transform: translateX(20px);
+  }
+
+  /* 循环标记 */
+  .loop-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--accent-purple);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  /* 文件input隐藏 */
+  #fileInput { display: none; }
+</style>
+</head>
+<body>
+
+<div class="main-container">
+  <!-- 页面标题 -->
+  <div class="page-header">
+    <h1>🎛️ <span>动作组模式</span> 控制台</h1>
+    <p>舵机动作组编辑、播放与管理</p>
+  </div>
+  <div class="connection-badge" id="bleStatusBadge" style="margin: 0 20px 8px; padding: 6px 12px; border-radius: 6px; font-size: 13px; background: rgba(200,0,0,0.15); color: #f66; text-align: center;">
+    🔴 蓝牙未连接 | Tx未绑定
+  </div>
+
+  <!-- 1. 模式开关区域 -->
+  <div class="card mode-switch-card">
+    <div class="mode-switch-left">
+      <div>
+        <div class="label">⚡ 动作组模式</div>
+        <div class="sublabel">进入后可执行动作组播放、扫描等操作</div>
+      </div>
+    </div>
+    <div class="toggle-wrapper">
+      <div class="mode-status">
+        <span class="dot" id="modeDot"></span>
+        <span id="modeStatusText">空闲</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modeSwitch">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- 2. 舵机控制区域 -->
+  <div class="card" id="servoControlCard">
+    <div class="card-title"><span class="icon">🔧</span> 舵机控制</div>
+    <div class="servo-control-row">
+      <button class="btn btn-danger btn-sm" id="btnPowerOff" disabled>
+        <span class="btn-icon">⏻</span> 舵机掉电
+      </button>
+      <button class="btn btn-primary btn-sm" id="btnScan" disabled>
+        <span class="btn-icon">📡</span> 扫描并读取位置
+      </button>
+      <button class="btn btn-sm" id="btnForceExitAction" style="background:#e74c3c;color:#fff;">
+        <span class="btn-icon">🛑</span> 退出动作组模式
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. 扫描结果区域 -->
+  <div class="card" id="scanResultCard">
+    <div class="card-title"><span class="icon">📋</span> 扫描结果</div>
+    <div class="scan-result-box" id="scanResultBox">
+      <span class="placeholder">点击「扫描并读取位置」后，结果将显示在此处...</span>
+    </div>
+    <div class="scan-action-row">
+      <button class="btn btn-success btn-sm" id="btnGenerateAction" disabled>
+        <span class="btn-icon">✨</span> 一键生成静态动作
+      </button>
+      <span style="font-size:12px; color:var(--text-muted);">→ 将当前扫描结果转为 JSON 动作组，填入下方编辑区</span>
+    </div>
+  </div>
+
+  <!-- 4. JSON 命令编辑区域 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📝</span> JSON 命令编辑</div>
+    <div class="file-label">
+      当前文件: <span class="filename" id="currentFileName">未加载</span>
+    </div>
+    <textarea class="json-editor" id="jsonEditor" placeholder='在此粘贴或导入 JSON 动作组数据...&#10;&#10;示例格式:&#10;{&#10;  "name": "前进摆动",&#10;  "version": 2,&#10;  "steps": [&#10;    {&#10;      "delay": 200,&#10;      "servos": [&#10;        { "id": 1, "position": 500, "time": 200 },&#10;        { "id": 2, "position": 600, "time": 200 }&#10;      ]&#10;    }&#10;  ]&#10;}'></textarea>
+    <div class="json-actions">
+      <button class="btn btn-sm" id="btnImportFile" disabled>
+        <span class="btn-icon">📂</span> 导入文件
+      </button>
+      <button class="btn btn-primary btn-sm" id="btnParseJson" disabled>
+        <span class="btn-icon">⚙️</span> 解析 JSON
+      </button>
+      <input type="file" id="fileInput" accept=".json">
+    </div>
+  </div>
+
+  <!-- 5. 动作序列列表区域 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🎬</span> 动作序列</div>
+    <div class="sequence-controls">
+      <div class="loop-label">
+        <label class="toggle" style="width:42px; height:22px;">
+          <input type="checkbox" id="loopSwitch">
+          <span class="slider" style="border-radius:22px;">
+          </span>
+        </label>
+        <span>循环执行</span>
+      </div>
+      <div class="divider"></div>
+      <div class="playback-buttons">
+        <button class="btn btn-success btn-sm" id="btnPlay" disabled>
+          <span class="btn-icon">▶</span> 播放
+        </button>
+        <button class="btn btn-warning btn-sm" id="btnPause" disabled>
+          <span class="btn-icon">⏸</span> 暂停
+        </button>
+        <button class="btn btn-danger btn-sm" id="btnStop" disabled>
+          <span class="btn-icon">⏹</span> 停止
+        </button>
+      </div>
+    </div>
+
+    <div class="step-list" id="stepList">
+      <div class="step-list-empty" id="stepListEmpty">
+        <div class="empty-icon">📭</div>
+        <div>暂无动作序列</div>
+        <div style="margin-top:4px; font-size:12px;">请导入或解析 JSON 动作组数据</div>
+      </div>
+    </div>
+
+    <div class="progress-bar-container" id="progressBar">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-icon" id="modalIcon">⚠️</div>
+    <div class="modal-title" id="modalTitle">提示</div>
+    <div class="modal-message" id="modalMessage">消息内容</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-sm" id="modalOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  状态管理
+// ============================================================
+const state = {
+  modeOn: false,
+  isPlaying: false,
+  isPaused: false,
+  currentStepIndex: 0,
+  loopState: null,
+  timerId: null,
+  steps: [],
+  parsedJson: null,
+  scanData: null,
+  fileName: '未加载',
+  uiLoop: false
+};
+
+// BLE 状态
+let bleStatus = { connected: false, txBound: false, rxBound: false, device: null };
+function updateBleBadge() {
+  const badge = document.getElementById('bleStatusBadge');
+  if (!badge) return;
+  if (bleStatus.connected && bleStatus.txBound) {
+    badge.innerHTML = `🟢 蓝牙已连接 [${bleStatus.device?.name || '设备'}] | Tx已绑定`;
+    badge.style.background = 'rgba(0,200,0,0.15)'; badge.style.color = '#0f0';
+  } else if (bleStatus.connected) {
+    badge.innerHTML = '🟡 蓝牙已连接 | Tx未绑定（请先在蓝牙界面绑定发送特征）';
+    badge.style.background = 'rgba(200,200,0,0.15)'; badge.style.color = '#ff0';
+  } else {
+    badge.innerHTML = '🔴 蓝牙未连接 | Tx未绑定';
+    badge.style.background = 'rgba(200,0,0,0.15)'; badge.style.color = '#f66';
+  }
+}
+
+// ============================================================
+//  DOM 元素
+// ============================================================
+const $ = id => document.getElementById(id);
+
+const modeSwitch      = $('modeSwitch');
+const modeDot         = $('modeDot');
+const modeStatusText  = $('modeStatusText');
+const btnPowerOff     = $('btnPowerOff');
+const btnScan         = $('btnScan');
+const scanResultBox   = $('scanResultBox');
+const btnGenerate     = $('btnGenerateAction');
+const jsonEditor      = $('jsonEditor');
+const currentFileName = $('currentFileName');
+const btnImportFile   = $('btnImportFile');
+const btnParseJson    = $('btnParseJson');
+const fileInput       = $('fileInput');
+const loopSwitch      = $('loopSwitch');
+const btnPlay         = $('btnPlay');
+const btnPause        = $('btnPause');
+const btnStop         = $('btnStop');
+const stepList        = $('stepList');
+const stepListEmpty   = $('stepListEmpty');
+const progressBar     = $('progressBar');
+const progressFill    = $('progressFill');
+const modalOverlay    = $('modalOverlay');
+const modalIcon       = $('modalIcon');
+const modalTitle      = $('modalTitle');
+const modalMessage    = $('modalMessage');
+const modalOk         = $('modalOk');
+
+// ============================================================
+//  工具函数
+// ============================================================
+function sendWs(type, data) {
+    try {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'ws-send', wsType: type, wsData: data || {} }, '*');
+        }
+    } catch(e) {}
+}
+
+function setStatus(msg, type = 'idle') {
+  const level = type === 'error' ? 'error' : (type === 'playing' ? 'warn' : 'info');
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'log', level: level, message: msg }, '*');
+    }
+  } catch(e) {}
+}
+
+function showToast(msg, type = 'info') {
+  // 仅显示视觉提示，不再向父框架发日志（setStatus 已负责日志输出，避免重复）
+}
+
+function showModal(icon, title, message) {
+  modalIcon.textContent = icon;
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+  modalOverlay.classList.add('show');
+}
+
+modalOk.addEventListener('click', () => {
+  modalOverlay.classList.remove('show');
+});
+modalOverlay.addEventListener('click', e => {
+  if (e.target === modalOverlay) modalOverlay.classList.remove('show');
+});
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function setModeUI(on) {
+  if (on) {
+    modeDot.classList.add('active');
+    modeStatusText.textContent = '动作组模式';
+    btnPowerOff.disabled = false;
+    btnScan.disabled = false;
+    // 启用 JSON 编辑区
+    jsonEditor.readOnly = false;
+    btnImportFile.disabled = false;
+    btnParseJson.disabled = false;
+    // 启用循环开关
+    loopSwitch.disabled = false;
+  } else {
+    modeDot.classList.remove('active');
+    modeStatusText.textContent = '空闲';
+    btnPowerOff.disabled = true;
+    btnScan.disabled = true;
+    btnGenerate.disabled = true;
+    scanResultBox.innerHTML = '<span class="placeholder">点击「扫描并读取位置」后，结果将显示在此处...</span>';
+    state.scanData = null;
+    // 禁用 JSON 编辑区
+    jsonEditor.readOnly = true;
+    btnImportFile.disabled = true;
+    btnParseJson.disabled = true;
+    // 禁用播放控制
+    btnPlay.disabled = true;
+    btnPause.disabled = true;
+    btnStop.disabled = true;
+    // 禁用并重置循环开关
+    loopSwitch.disabled = true;
+    loopSwitch.checked = false;
+    state.uiLoop = false;
+  }
+}
+
+function setPlaybackUI(playing) {
+  btnPlay.disabled = !playing && state.steps.length === 0;
+  btnPause.disabled = !playing;
+  btnStop.disabled = !playing && !state.isPaused;
+}
+
+// ============================================================
+//  1. 模式开关
+// ============================================================
+modeSwitch.addEventListener('change', () => {
+  if (modeSwitch.checked) {
+    if (!bleStatus.connected) {
+      setStatus('蓝牙未连接', 'error');
+      modeSwitch.checked = false; return;
+    }
+    if (!bleStatus.txBound) {
+      setStatus('未绑定全局发送特征', 'error');
+      modeSwitch.checked = false; return;
+    }
+    if (bleStatus.calibrationActive) {
+      setStatus('请先退出校准模式再进入动作组模式', 'error');
+      showToast('校准模式已激活，请先退出校准模式', 'error');
+      modeSwitch.checked = false; return;
+    }
+    setStatus('正在进入动作组模式...', 'playing');
+    sendWs('action:sendCmd', { cmd: '0x0A', payload: [] });
+    // 等待下位机 0x04:0x12 反馈确认
+  } else {
+    if (state.isPlaying) stopPlayback();
+    setStatus('正在退出动作组模式...', 'playing');
+    sendWs('action:sendCmd', { cmd: '0x0B', payload: [] });
+    // 等待下位机 0x04:0x13 反馈确认
+  }
+});
+
+// ============================================================
+//  2. 舵机掉电
+// ============================================================
+btnPowerOff.addEventListener('click', () => {
+  if (state.isPlaying) return;
+  setStatus('正在发送掉电指令...', 'playing');
+  sendWs('action:sendCmd', { cmd: '0x0E', payload: [] });
+  // 等待下位机 0x04:0x14 反馈确认
+});
+
+// ============================================================
+//  3. 扫描并读取位置
+// ============================================================
+btnScan.addEventListener('click', async () => {
+  if (state.isPlaying) return;
+  setStatus('正在扫描舵机位置...', 'playing');
+  sendWs('action:sendCmd', { cmd: '0x0C', payload: [] });
+  // 结果由 action:scanResult 监听器处理
+});
+
+// 安全退出按钮
+btnForceExitAction.addEventListener('click', () => {
+  if (!state.modeOn) { showToast('当前未处于动作组模式', 'info'); return; }
+  setStatus('正在退出动作组模式...', 'playing');
+  sendWs('action:sendCmd', { cmd: '0x0B', payload: [] });
+  showToast('已发送退出指令，等待反馈...', 'info');
+});
+
+function renderScanResult(data) {
+  scanResultBox.innerHTML = data.map(s =>
+    `<span class="servo-item"><span class="sid">ID${s.id}</span>: <span class="spos">${s.position}</span></span>`
+  ).join('');
+}
+
+// ============================================================
+//  4. 一键生成静态动作
+// ============================================================
+btnGenerate.addEventListener('click', () => {
+  if (!state.scanData || state.scanData.length === 0) return;
+  
+  const servos = state.scanData.map(s => ({
+    id: s.id,
+    position: s.position,
+    time: 0
+  }));
+  
+  const json = {
+    name: "静态姿势",
+    version: 2,
+    steps: [
+      {
+        delay: 200,
+        servos: servos
+      }
+    ]
+  };
+  
+  jsonEditor.value = JSON.stringify(json, null, 2);
+  currentFileName.textContent = '自动生成';
+  state.fileName = '自动生成';
+  setStatus('已生成静态动作，可修改运行时间后解析', 'success');
+  showToast('已生成静态动作 JSON，可修改后点击「解析 JSON」', 'info');
+});
+
+// ============================================================
+//  5. 导入文件
+// ============================================================
+btnImportFile.addEventListener('click', () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    jsonEditor.value = ev.target.result;
+    currentFileName.textContent = file.name;
+    state.fileName = file.name;
+    setStatus(`已加载文件: ${file.name}`, 'success');
+    showToast(`文件已导入: ${file.name}`, 'success');
+  };
+  reader.readAsText(file);
+  fileInput.value = '';
+});
+
+// ============================================================
+//  6. 解析 JSON
+// ============================================================
+btnParseJson.addEventListener('click', () => {
+  if (state.isPlaying) return;
+  
+  const text = jsonEditor.value.trim();
+  if (!text) {
+    showModal('⚠️', '解析失败', 'JSON 编辑区域为空，请先输入或导入数据。');
+    return;
+  }
+  
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch (e) {
+    showModal('❌', 'JSON 格式错误', e.message);
+    setStatus('JSON 解析失败：格式错误', 'error');
+    return;
+  }
+  
+  // Schema 校验
+  if (!json.steps || !Array.isArray(json.steps) || json.steps.length === 0) {
+    showModal('❌', '解析失败', '缺少 steps 字段或 steps 为空数组。');
+    setStatus('JSON 解析失败：缺少 steps', 'error');
+    return;
+  }
+  
+  for (let i = 0; i < json.steps.length; i++) {
+    const step = json.steps[i];
+    if (!step.servos || !Array.isArray(step.servos) || step.servos.length === 0) {
+      showModal('❌', '解析失败', `Step ${i + 1}: 缺少 servos 字段或为空。`);
+      setStatus(`JSON 解析失败：Step ${i+1} 缺少 servos`, 'error');
+      return;
+    }
+    for (const servo of step.servos) {
+      if (servo.id < 0 || servo.id > 253) {
+        showModal('❌', '解析失败', `Step ${i + 1}: 舵机 ID ${servo.id} 超出范围 (0-253)。`);
+        return;
+      }
+    }
+  }
+  
+  state.parsedJson = json;
+  state.steps = json.steps;
+  state.currentStepIndex = 0;
+  state.loopState = null;
+  
+  renderStepList(json.steps, json.playback?.loop);
+  
+  btnPlay.disabled = false;
+  btnPause.disabled = true;
+  btnStop.disabled = true;
+  
+  setStatus(`JSON 解析成功: ${json.steps.length} 个动作步骤`, 'success');
+  showToast(`解析成功！共 ${json.steps.length} 步`, 'success');
+});
+
+// ============================================================
+//  7. 渲染动作序列列表
+// ============================================================
+function renderStepList(steps, loop) {
+  stepListEmpty.style.display = 'none';
+  
+  // 移除旧的 step items
+  stepList.querySelectorAll('.step-item').forEach(el => el.remove());
+  
+  steps.forEach((step, idx) => {
+    const div = document.createElement('div');
+    div.className = 'step-item';
+    div.dataset.index = idx;
+    
+    // 判断是否在循环区间内
+    let loopBadge = '';
+    if (loop?.enabled) {
+      const start = loop.startIndex ?? 0;
+      const end = loop.endIndex ?? steps.length - 1;
+      if (idx >= start && idx <= end) {
+        loopBadge = `<span class="loop-badge">🔁 循环</span>`;
+      }
+    }
+    
+    const servosSummary = step.servos.map(s =>
+      `<span class="servo-detail-item">
+        舵机<span style="color:var(--accent-orange)">${s.id}</span>
+        <span class="arrow">→</span>
+        <span class="target">${s.position}</span>
+        <span class="time">(${s.time || 0}ms)</span>
+      </span>`
+    ).join('');
+    
+    div.innerHTML = `
+      <div class="step-header">
+        <span class="play-indicator" title="点击执行此步">▶</span>
+        <span class="step-index">Step ${idx + 1}</span>
+        <span class="step-summary">
+          <span class="highlight">${step.servos.length}</span> 个舵机, 
+          延时 <span class="highlight">${step.delay || 0}ms</span>
+          ${loopBadge}
+        </span>
+        <span class="expand-icon">▶</span>
+      </div>
+      <div class="step-detail">
+        ${servosSummary}
+      </div>
+    `;
+    
+    // 点击：虚影 ▶ → 执行该步；其他区域 → 展开/折叠
+    div.querySelector('.step-header').addEventListener('click', (e) => {
+      if (e.target.closest('.play-indicator')) {
+        // 点击虚影 ▶：立即执行该动作
+        executeSingleStep(idx);
+      } else {
+        // 点击其他区域：切换展开/折叠
+        div.classList.toggle('expanded');
+      }
+    });
+    
+    stepList.appendChild(div);
+  });
+}
+
+function clearStepList() {
+  stepList.querySelectorAll('.step-item').forEach(el => el.remove());
+  stepListEmpty.style.display = 'block';
+  state.steps = [];
+  state.parsedJson = null;
+  state.currentStepIndex = 0;
+  state.loopState = null;
+  btnPlay.disabled = true;
+  btnPause.disabled = true;
+  btnStop.disabled = true;
+  progressBar.classList.remove('active');
+}
+
+// ============================================================
+//  8. 播放控制
+// ============================================================
+function highlightStep(idx) {
+  stepList.querySelectorAll('.step-item').forEach((el, i) => {
+    el.classList.remove('playing');
+    if (i === idx) {
+      el.classList.add('playing');
+      // 滚动到可见
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+  
+  // 更新进度
+  if (state.steps.length > 0) {
+    const pct = ((idx + 1) / state.steps.length * 100).toFixed(0);
+    progressFill.style.width = pct + '%';
+    // step progress now shown via setStatus to parent framework
+  }
+}
+
+function clearHighlight() {
+  stepList.querySelectorAll('.step-item').forEach(el => {
+    el.classList.remove('playing');
+  });
+}
+
+async function executeStep(idx) {
+  if (idx >= state.steps.length) return;
+  
+  const step = state.steps[idx];
+  highlightStep(idx);
+  setStatus(`正在执行 Step ${idx + 1}/${state.steps.length}`, 'playing');
+  
+  // 构建 0x02 协议载荷: [ID, Pos_L, Pos_H, Time_L, Time_H] × N
+  const payload = [];
+  const servos = step.servos || [];
+  for (const s of servos) {
+    const pos = s.position || 500;
+    const time = s.time || 500;
+    payload.push(s.id || 0, pos & 0xFF, (pos >> 8) & 0xFF, time & 0xFF, (time >> 8) & 0xFF);
+  }
+  sendWs('action:sendCmd', { cmd: '0x02', payload: payload });
+  
+  await sleep(100); // 短暂延迟配合后端
+  
+  // 等待 delay
+  if (step.delay > 0) {
+    await sleep(Math.min(step.delay, 2000));
+  }
+}
+
+function scheduleNext() {
+  if (!state.isPlaying) return;
+  state.timerId = setTimeout(() => playSequence(), 50);
+}
+
+async function playSequence() {
+  if (!state.isPlaying) return;
+  
+  const steps = state.steps;
+  const loop = state.parsedJson?.playback?.loop;
+  
+  if (state.currentStepIndex >= steps.length) {
+    if (state.uiLoop) {
+      state.currentStepIndex = 0;
+      state.loopState = null;
+      scheduleNext();
+    } else {
+      stopPlayback();
+      setStatus('播放完成', 'success');
+      showToast('动作序列播放完成', 'success');
+    }
+    return;
+  }
+  
+  // 处理内部循环
+  if (loop?.enabled && !state.loopState) {
+    const start = loop.startIndex ?? 0;
+    const end = loop.endIndex ?? steps.length - 1;
+    
+    if (state.currentStepIndex < start) {
+      // 尚未进入循环区间，正常执行前置步骤
+      await executeStep(state.currentStepIndex);
+      state.currentStepIndex++;
+      scheduleNext();
+      return;
+    }
+    
+    // 当前索引在循环区间内时才初始化循环状态
+    // 若已越过循环区间（循环结束时残留状态被清空后的下一轮调用），
+    // 跳过初始化，继续顺序执行后续步骤
+    if (state.currentStepIndex <= end) {
+      state.loopState = {
+        start,
+        end,
+        remaining: loop.count,
+        delayBetween: loop.delayBetweenLoops ?? 0,
+        inLoop: true
+      };
+    }
+  }
+  
+  if (state.loopState && state.loopState.inLoop) {
+    if (state.currentStepIndex > state.loopState.end) {
+      state.loopState = null;
+      scheduleNext();
+      return;
+    }
+    
+    await executeStep(state.currentStepIndex);
+    state.currentStepIndex++;
+    
+    if (state.currentStepIndex > state.loopState.end) {
+      state.loopState.remaining--;
+      if (state.loopState.remaining !== 0) {
+        state.currentStepIndex = state.loopState.start;
+        if (state.loopState.delayBetween > 0) {
+          await sleep(Math.min(state.loopState.delayBetween, 1000));
+        }
+      } else {
+        state.loopState = null;
+      }
+    }
+    scheduleNext();
+    return;
+  }
+  
+  await executeStep(state.currentStepIndex);
+  state.currentStepIndex++;
+  scheduleNext();
+}
+
+// 播放按钮 - 委托给后端控制
+btnPlay.addEventListener('click', () => {
+  if (state.steps.length === 0) return;
+
+  if (state.isPaused) {
+    // 恢复播放
+    state.isPlaying = true;
+    state.isPaused = false;
+    btnPlay.disabled = true;
+    btnPause.disabled = false;
+    btnStop.disabled = false;
+    progressBar.classList.add('active');
+    sendWs('action:play', { steps: state.steps, loop: state.uiLoop, jsonLoop: state.parsedJson?.playback?.loop || null });
+    setStatus('继续播放...', 'playing');
+    return;
+  }
+
+  state.isPlaying = true;
+  state.isPaused = false;
+  state.uiLoop = loopSwitch.checked;
+  state.currentStepIndex = 0;
+
+  progressBar.classList.add('active');
+  progressFill.style.width = '0%';
+
+  btnPlay.disabled = true;
+  btnPause.disabled = false;
+  btnStop.disabled = false;
+  disableControlsDuringPlayback(true);
+
+  sendWs('action:play', {
+    steps: state.steps,
+    loop: state.uiLoop,
+    jsonLoop: state.parsedJson?.playback?.loop || null,
+  });
+
+  setStatus('开始播放...', 'playing');
+});
+
+// 暂停按钮
+btnPause.addEventListener('click', () => {
+  if (!state.isPlaying) return;
+  state.isPlaying = false;
+  state.isPaused = true;
+  sendWs('action:pause', {});
+  btnPlay.disabled = false;
+  btnPause.disabled = true;
+  btnStop.disabled = false;
+  setStatus(`已暂停 - Step ${state.currentStepIndex + 1}/${state.steps.length}`, 'idle');
+  showToast('播放已暂停', 'warning');
+});
+
+// 停止按钮
+btnStop.addEventListener('click', () => {
+  sendWs('action:stop', {});
+  stopPlayback();
+  // 状态由 playbackProgress 事件统一设置，不重复输出
+});
+
+function stopPlayback() {
+  state.isPlaying = false;
+  state.isPaused = false;
+  state.currentStepIndex = 0;
+  state.loopState = null;
+  
+  if (state.timerId) {
+    clearTimeout(state.timerId);
+    state.timerId = null;
+  }
+  
+  clearHighlight();
+  progressBar.classList.remove('active');
+  progressFill.style.width = '0%';
+  
+  btnPlay.disabled = state.steps.length === 0;
+  btnPause.disabled = true;
+  btnStop.disabled = true;
+  disableControlsDuringPlayback(false);
+}
+
+function disableControlsDuringPlayback(disabled) {
+  if (disabled) {
+    // 播放期间：全部禁用
+    btnParseJson.disabled = true;
+    btnImportFile.disabled = true;
+    btnGenerate.disabled = true;
+    btnPowerOff.disabled = true;
+    btnScan.disabled = true;
+    jsonEditor.readOnly = true;
+    loopSwitch.disabled = true;
+  } else {
+    // 播放结束后：恢复按钮状态
+    btnPlay.disabled = state.steps.length === 0;
+    btnPause.disabled = true;
+    btnStop.disabled = true;
+    setModeUI(state.modeOn);
+  }
+}
+
+// 执行单步（双击 step）
+function executeSingleStep(idx) {
+  if (state.isPlaying) {
+    stopPlayback();
+  }
+  
+  const step = state.steps[idx];
+  if (!step) return;
+  
+  highlightStep(idx);
+  state.currentStepIndex = idx;
+  state.loopState = null;
+  
+  // 构建 0x02 协议载荷发送
+  const payload = [];
+  const servos = step.servos || [];
+  for (const s of servos) {
+    const pos = s.position || 500;
+    const time = s.time || 500;
+    payload.push(s.id || 0, pos & 0xFF, (pos >> 8) & 0xFF, time & 0xFF, (time >> 8) & 0xFF);
+  }
+  sendWs('action:sendCmd', { cmd: '0x02', payload: payload });
+  
+  setStatus(`已发送 Step ${idx + 1} 指令（单击执行）`, 'success');
+  showToast(`已执行 Step ${idx + 1}`, 'info');
+  progressBar.classList.add('active');
+  progressFill.style.width = ((idx + 1) / state.steps.length * 100) + '%';
+  
+  btnPlay.disabled = false;
+  btnStop.disabled = false;
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+// JSON 编辑器为空，等待用户导入或手动输入
+currentFileName.textContent = '未加载';
+updateBleBadge();
+
+// 初始状态：模式关闭，所有控件禁用
+setModeUI(false);
+jsonEditor.readOnly = true;
+
+// ============================================================
+//  循环开关
+// ============================================================
+loopSwitch.addEventListener('change', () => {
+  state.uiLoop = loopSwitch.checked;
+  if (loopSwitch.checked) {
+    showToast('上位机循环已开启，播放完将自动重头开始', 'info');
+  }
+});
+
+// ==================== 接收后端消息 ====================
+window.addEventListener('message', function(e) {
+  const data = e.data;
+  if (!data || typeof data !== 'object') return;
+
+  // 直接消息（来自框架转发的协议包）
+  if (data.type === 'action:scanResult') {
+    const rawBytes = data.data.rawBytes;
+    const positions = [];
+    for (let i = 0; i + 2 < rawBytes.length; i += 3) {
+      const id = rawBytes[i];
+      const pos = rawBytes[i + 1] | (rawBytes[i + 2] << 8);
+      positions.push({ id, position: pos });
+      setStatus(`舵机 ${id}: ${pos} 脉冲`, 'success');
+    }
+    state.scanData = positions;
+    renderScanResult(positions);
+    btnGenerate.disabled = false;
+    setStatus(`扫描完成，检测到 ${positions.length} 个舵机`, 'success');
+    showToast(`扫描成功: ${positions.length} 个舵机`, 'success');
+    return;
+  }
+  if (data.type === 'action:feedback') {
+    if (data.data.status === 0x12) {
+      state.modeOn = true;
+      setModeUI(true);
+      setStatus('已进入动作组模式', 'success');
+      showToast('动作组模式已开启', 'success');
+    } else if (data.data.status === 0x13) {
+      setStatus('已退出动作组模式', 'idle');
+      state.modeOn = false;
+      setModeUI(false);
+      clearStepList();
+      if (modeSwitch.checked) { modeSwitch.checked = false; }
+    } else if (data.data.status === 0x14) {
+      setStatus('舵机已掉电', 'success');
+    }
+    return;
+  }
+
+  if (data.type === 'ws-event') {
+    const { eventType, data: eventData } = data;
+
+    switch (eventType) {
+      case 'ble:status':
+        bleStatus = eventData;
+        updateBleBadge();
+        break;
+
+      case 'action:scannedPositions':
+        if (eventData.positions) {
+          state.scanData = eventData.positions;
+          renderScanResult(eventData.positions);
+          btnGenerate.disabled = false;
+          setStatus(`扫描完成，检测到 ${eventData.positions.length} 个舵机`, 'success');
+          showToast(`扫描成功: ${eventData.positions.length} 个舵机`, 'success');
+        }
+        break;
+
+      case 'action:playbackProgress':
+        if (eventData.status === 'playing') {
+          state.currentStepIndex = eventData.currentStep;
+          highlightStep(eventData.currentStep);
+          if (eventData.totalSteps > 0) {
+            progressFill.style.width = ((eventData.currentStep + 1) / eventData.totalSteps * 100).toFixed(0) + '%';
+          }
+        } else if (eventData.status === 'paused') {
+          // 暂停由 btnPause 处理 UI，此处仅同步
+        } else if (eventData.status === 'stopped') {
+          stopPlayback();
+          setStatus('播放已停止', 'idle');
+        } else if (eventData.status === 'completed') {
+          state.isPlaying = false;
+          progressBar.classList.remove('active');
+          progressFill.style.width = '100%';
+          stopPlayback();
+          setStatus('播放完成', 'success');
+          showToast('动作序列播放完成', 'success');
+        }
+        break;
+    }
+  }
+});
+</script>
+
+</body>
+</html>
